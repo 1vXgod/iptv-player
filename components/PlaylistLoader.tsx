@@ -31,6 +31,15 @@ export default function PlaylistLoader({ onDone }: { onDone: () => void }) {
   const [mac, setMac] = useState("");
   const [portal, setPortal] = useState("");
   const [copied, setCopied] = useState(false);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const focusTabs = () => tabsRef.current?.querySelector<HTMLButtonElement>('[data-active="true"]')?.focus();
+
+  // Open with the tab bar focused (remote-style), and keep focus on the tab bar while switching tabs.
+  useEffect(() => { focusTabs(); }, []);
+  useEffect(() => {
+    if (tabsRef.current?.contains(document.activeElement)) focusTabs();
+  }, [tab]);
 
   useEffect(() => {
     setMac(deviceMac());
@@ -92,9 +101,18 @@ export default function PlaylistLoader({ onDone }: { onDone: () => void }) {
     try { await navigator.clipboard.writeText(mac); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* clipboard blocked */ }
   };
 
-  // ◀▶ switch tabs when the caret isn't in a text field
+  // Remote-style keys: ◀▶ switch tabs, ▼ into the fields, ▲ back to the tabs.
+  // (Backspace closes the dialog — handled by the Receiver — unless you're typing in a field.)
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if ((e.target as HTMLElement).tagName === "INPUT") return;
+    if ((e.target as HTMLElement).tagName === "INPUT") {
+      if (e.key === "ArrowUp") { focusTabs(); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "ArrowDown" && tabsRef.current?.contains(e.target as Node)) {
+      panelRef.current?.querySelector<HTMLElement>("input, button")?.focus();
+      e.preventDefault();
+      return;
+    }
     if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       const i = TABS.findIndex((t) => t.id === tab);
       setTab(TABS[(i + (e.key === "ArrowLeft" ? -1 : 1) + TABS.length) % TABS.length].id);
@@ -118,23 +136,25 @@ export default function PlaylistLoader({ onDone }: { onDone: () => void }) {
           <span className="max-w-[55%] truncate text-[1.05cqw] text-white/70">Current: {playlistDisplayName(source)} ({count})</span>
         </div>
 
-        <div className="mb-[0.6cqw] flex gap-[0.6cqw] border-b border-white/20">
+        <div ref={tabsRef} className="mb-[0.6cqw] flex gap-[0.6cqw] border-b border-white/20">
           {TABS.map((t) => (
             <button
               key={t.id}
+              data-active={tab === t.id}
               onClick={() => { setTab(t.id); setMsg(null); }}
-              className={`-mb-px rounded-t-[0.5cqw] px-[1.4cqw] py-[0.6cqw] text-[1.25cqw] font-semibold outline-none ${tab === t.id ? "border border-b-0 border-white/30 bg-[#16c6f2] text-[#062033]" : "text-white/75 hover:text-white"}`}
+              className={`-mb-px rounded-t-[0.5cqw] px-[1.4cqw] py-[0.6cqw] text-[1.25cqw] font-semibold outline-none focus-visible:ring-[0.25cqw] focus-visible:ring-white ${tab === t.id ? "border border-b-0 border-white/30 bg-[#16c6f2] text-[#062033]" : "text-white/75 hover:text-white"}`}
             >
               {t.label}
             </button>
           ))}
         </div>
 
+        <div ref={panelRef}>
         {tab === "m3u" && (
           <>
             <label className={label}>M3U / M3U8 URL</label>
             <div className="flex gap-[0.8cqw]">
-              <input autoFocus value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fromUrl()}
+              <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fromUrl()}
                 placeholder="https://example.com/playlist.m3u" className={input} />
               <button onClick={fromUrl} disabled={busy} className={`${btn} bg-[#16c6f2] text-[#062033]`}>{busy ? "Loading…" : "Load"}</button>
             </div>
@@ -150,7 +170,7 @@ export default function PlaylistLoader({ onDone }: { onDone: () => void }) {
         {tab === "xtream" && (
           <div onKeyDown={(e) => e.key === "Enter" && fromXtream()}>
             <label className={label}>Server (with port)</label>
-            <div className="flex"><input autoFocus value={xServer} onChange={(e) => setXServer(e.target.value)} placeholder="http://server.example.com:8080" className={input} /></div>
+            <div className="flex"><input value={xServer} onChange={(e) => setXServer(e.target.value)} placeholder="http://server.example.com:8080" className={input} /></div>
             <div className="flex gap-[1cqw]">
               <div className="flex-1">
                 <label className={label}>Username</label>
@@ -183,15 +203,17 @@ export default function PlaylistLoader({ onDone }: { onDone: () => void }) {
             </ol>
             <label className={label}>Portal URL</label>
             <div className="flex gap-[0.8cqw]">
-              <input autoFocus value={portal} onChange={(e) => setPortal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fromPortal()}
+              <input value={portal} onChange={(e) => setPortal(e.target.value)} onKeyDown={(e) => e.key === "Enter" && fromPortal()}
                 placeholder="http://server.example.com:8080/c/" className={input} />
               <button onClick={fromPortal} disabled={busy || !mac} className={`${btn} bg-[#16c6f2] text-[#062033]`}>{busy ? "Connecting…" : "Connect"}</button>
             </div>
           </>
         )}
 
+        </div>
+
         <div className="mt-[1.4cqw] flex items-center">
-          <span className="text-[1.05cqw] text-white/55">◀▶ switch tabs · Tab moves between fields</span>
+          <span className="text-[1.05cqw] text-white/55">◀▶ switch tabs · ▼ enter fields · ▲ back to tabs · ⌫/Esc close</span>
           <button onClick={onDone} className={`${btn} ml-auto bg-white/15`}>Close (Esc)</button>
         </div>
 

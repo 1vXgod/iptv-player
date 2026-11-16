@@ -57,7 +57,8 @@ export default function Receiver() {
       const inField = (e.target as HTMLElement)?.closest?.("input,textarea,select");
 
       if (s.overlay) {
-        if (k === "Escape" || (s.overlay === "placeholder" && k === "Enter")) {
+        // Backspace = back, except while typing in a text field (then it deletes text).
+        if (k === "Escape" || (k === "Backspace" && !inField) || (s.overlay === "placeholder" && k === "Enter")) {
           e.preventDefault();
           e.stopImmediatePropagation(); // don't let the screen underneath also treat this key as "back"
           s.openOverlay(null);
