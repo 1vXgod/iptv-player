@@ -78,3 +78,26 @@ export function SpeakerIcon({ muted, className = "" }: { muted: boolean; classNa
     </svg>
   );
 }
+
+/**
+ * Channel logo from the playlist (tvg-logo / portal logo). Tries the image directly, then via the
+ * local proxy (some logo hosts block hot-linking), then shows `fallback`.
+ */
+export function ChannelLogo({ src, className = "", fallback = null }: { src?: string; className?: string; fallback?: React.ReactNode }) {
+  const [stage, setStage] = useState(0); // 0 = direct, 1 = via proxy, 2 = give up
+  useEffect(() => setStage(0), [src]);
+  if (!src || stage >= 2 || !/^(https?:)?\/\//i.test(src)) return <>{fallback}</>;
+  const url = stage === 0 ? src : `/api/proxy?url=${encodeURIComponent(src)}`;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      key={url}
+      src={url}
+      alt=""
+      draggable={false}
+      referrerPolicy="no-referrer"
+      onError={() => setStage((s) => s + 1)}
+      className={`object-contain ${className}`}
+    />
+  );
+}

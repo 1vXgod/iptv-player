@@ -1,7 +1,7 @@
 "use client";
 import { channelsInGroup } from "@/lib/m3u";
 import { useStore } from "@/lib/store";
-import { Clock, ColorKey, LabelKey, TvIcon } from "./ui";
+import { ChannelLogo, Clock, ColorKey, LabelKey, TvIcon } from "./ui";
 import { VIDEO_FRAMES } from "./VideoPlayer";
 
 export const ROWS = 10;
@@ -80,11 +80,7 @@ export default function ChannelList() {
             >
               <span className="relative w-[9%] pr-[0.6cqw] text-right text-[1.5cqw] font-semibold">{c.number}</span>
               <TvIcon className="relative ml-[0.4cqw] h-[2cqw] w-[2.4cqw] shrink-0" />
-              {c.logo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={c.logo} alt="" className="relative ml-[0.7cqw] h-[2.2cqw] w-[2.2cqw] shrink-0 object-contain"
-                  onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-              ) : null}
+              <ChannelLogo src={c.logo} className="relative ml-[0.7cqw] h-[2.2cqw] w-[3cqw] shrink-0" />
               <span className={`relative ml-[0.8cqw] truncate text-[1.55cqw] ${playing && !active ? "text-[#5fdcff]" : ""}`}>
                 {c.name}
               </span>
@@ -111,7 +107,12 @@ export default function ChannelList() {
         </div>
       )}
       <div className="absolute left-[60.5%] right-[2.2%] top-[40.5%] text-[1.4cqw]">
-        {sel && <div className="font-semibold">{sel.number}&nbsp;&nbsp;{sel.name}</div>}
+        {sel && (
+          <div className="flex items-center gap-[1cqw] font-semibold">
+            <ChannelLogo src={sel.logo} className="h-[3cqw] w-[4.6cqw] shrink-0" />
+            <span className="truncate">{sel.number}&nbsp;&nbsp;{sel.name}</span>
+          </div>
+        )}
         <div className="mt-[0.5cqw] text-[1.15cqw]">00:00 - 00:00</div>
         <div className="mt-[0.6cqw] h-[0.45cqw] bg-[#6b7686]" />
         <div className="mt-[0.4cqw] text-[1.15cqw] text-[#5fdcff]">No Info</div>

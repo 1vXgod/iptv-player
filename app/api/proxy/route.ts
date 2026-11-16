@@ -11,6 +11,7 @@
  */
 import { findFfmpeg } from "@/lib/ffmpeg";
 import { EsInfo, findSync, probeTs, stripStreams } from "@/lib/ts";
+import { activeHub, isLiveTsUrl, liveStream, probeViaHub } from "@/lib/stream-hub";
 
 const PROBE_BYTES = 600_000;
 
@@ -55,6 +56,42 @@ export async function GET(req: Request) {
   const target = params.get("url");
   if (!target || !/^https?:\/\//i.test(target)) {
     return Response.json({ error: "Missing or invalid url" }, { status: 400, headers: CORS });
+  }
+
+  // Channel already open (being watched or recorded): probe from the shared hub's buffer
+  // instead of opening a second provider connection, which would kick the first one.
+  const hub = activeHub(target);
+  if (params.get("probe") && hub) {
+    const buf = await hub.snapshot(400_000, 5000);
+    const ok = findSync(buf) >= 0;
+    return Response.json(
+      { type: ok ? "ts" : "unknown", status: hub.status || 200, streams: ok ? probeTs(buf) : null, ffmpeg: !!findFfmpeg(), shared: true },
+      { headers: CORS },
+    );
+  }
+
+  // Probe of a live stream: go through the hub so the player's next request reuses this connection.
+  if (params.get("probe") && isLiveTsUrl(target)) {
+    const res = await probeViaHub(target);
+    if (res) {
+      const ok = findSync(res.buf) >= 0;
+      return Response.json(
+        { type: ok ? "ts" : "unknown", status: res.status, streams: ok ? probeTs(res.buf) : null, ffmpeg: !!findFfmpeg(), error: res.error, shared: true },
+        { headers: CORS },
+      );
+    }
+    // not raw TS (e.g. an HLS playlist without .m3u8 in the URL): fall through to a direct probe
+  }
+
+  // Live MPEG-TS for the player: served from the shared hub (one provider connection per channel).
+  if (params.get("live") && isLiveTsUrl(target)) {
+    const strip = params.get("strip");
+    let body = liveStream(target, req.signal);
+    if (strip) {
+      const bad = new Set(strip.split(","));
+      body = body.pipeThrough(stripStreams((c) => bad.has(c)));
+    }
+    return new Response(body, { headers: { ...CORS, "Content-Type": "video/mp2t", "Cache-Control": "no-store" } });
   }
 
   const headers: Record<string, string> = { "User-Agent": UPSTREAM_UA, Accept: "*/*" };

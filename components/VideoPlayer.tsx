@@ -379,11 +379,13 @@ export default function VideoPlayer() {
       if (cancelled) return;
       if (mode === "off") probe.ffmpeg = false;
       const encUrl = encodeURIComponent(url);
+      // Raw TS channels go through the server's shared stream hub (one provider connection per channel).
+      const liveQ = kind === "ts" ? "&live=1" : "";
 
       const probedAudio = (probe.streams ?? []).filter((s) => s.kind === "audio");
       if (probedAudio.length) expectAudio = true;
-      const audioConvAny = tsAttempt(`/api/transcode?url=${encUrl}`, "MPEG-TS (audio→AAC)");
-      const fullConvAny = tsAttempt(`/api/transcode?url=${encUrl}&mode=video`, "MPEG-TS (full transcode)");
+      const audioConvAny = tsAttempt(`/api/transcode?url=${encUrl}${liveQ}`, "MPEG-TS (audio→AAC)");
+      const fullConvAny = tsAttempt(`/api/transcode?url=${encUrl}&mode=video${liveQ}`, "MPEG-TS (full transcode)");
 
       if (mode === "always" && probe.ffmpeg) {
         attempts = [fullConvAny];
@@ -400,8 +402,8 @@ export default function VideoPlayer() {
         setTech({ videoCodec: video?.codec, audioCodec: audio[0]?.codec });
 
         const enc = encodeURIComponent(url);
-        const audioConv = tsAttempt(`/api/transcode?url=${enc}`, "MPEG-TS (audio→AAC)");
-        const fullConv = tsAttempt(`/api/transcode?url=${enc}&mode=video`, "MPEG-TS (full transcode)");
+        const audioConv = tsAttempt(`/api/transcode?url=${enc}&live=1`, "MPEG-TS (audio→AAC)");
+        const fullConv = tsAttempt(`/api/transcode?url=${enc}&mode=video&live=1`, "MPEG-TS (full transcode)");
 
         if (video && !videoSupported(video.codec)) {
           if (!probe.ffmpeg) {
@@ -412,18 +414,18 @@ export default function VideoPlayer() {
         } else {
           const bad = [...new Set(audio.filter((a) => !audioSupported(a.codec)).map((a) => a.codec))];
           const allBad = audio.length > 0 && bad.length === audio.length;
-          const stripUrl = `${proxyUrl(url)}&strip=${bad.join(",")}`;
+          const stripUrl = `${proxyUrl(url)}&live=1&strip=${bad.join(",")}`;
           if (probe.ffmpeg) {
             // Cheapest path first. If audio fails to decode (watchdog) -> audio→AAC; if the video
             // is rejected -> full transcode.
             attempts = allBad || audioFixAlways
               ? [audioConv, fullConv]
-              : [tsAttempt(bad.length ? stripUrl : proxyUrl(url), "MPEG-TS"), audioConv, fullConv];
+              : [tsAttempt(bad.length ? stripUrl : `${proxyUrl(url)}&live=1`, "MPEG-TS"), audioConv, fullConv];
           } else if (allBad) {
             attempts = [tsAttempt(stripUrl, "MPEG-TS (video only)", () =>
               setNotice(`No sound: ${bad.join("/").toUpperCase()} audio isn't supported by browsers. Install ffmpeg to enable it.`))];
           } else {
-            attempts = [tsAttempt(bad.length ? stripUrl : proxyUrl(url), "MPEG-TS")];
+            attempts = [tsAttempt(bad.length ? stripUrl : `${proxyUrl(url)}&live=1`, "MPEG-TS")];
           }
         }
         attempts = preferWinner(key, attempts);

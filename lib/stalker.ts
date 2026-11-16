@@ -13,6 +13,8 @@ const UA = "Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like
 const SESSION_TTL_MS = 30 * 60_000;
 
 export class PortalError extends Error {}
+/** The panel refused because the device's connection limit is in use. */
+export class PortalLimitError extends PortalError {}
 
 interface Session { endpoint: string; referer: string; token: string; at: number }
 const G = globalThis as unknown as { __mxStalker?: Map<string, Session> };
@@ -106,7 +108,8 @@ async function getSession(portal: string, mac: string, fresh = false) {
 async function withSession<T>(portal: string, mac: string, fn: (s: Session) => Promise<T>): Promise<T> {
   try {
     return await fn(await getSession(portal, mac));
-  } catch {
+  } catch (e) {
+    if (e instanceof PortalLimitError) throw e; // not a session problem
     return fn(await getSession(portal, mac, true));
   }
 }
@@ -149,11 +152,26 @@ export async function portalLogin(portal: string, mac: string): Promise<{ channe
 /** Exchange a channel's cmd for a fresh, playable stream URL. */
 export async function portalStreamUrl(portal: string, mac: string, cmd: string): Promise<string> {
   return withSession(portal, mac, async (s) => {
-    const js = await call(s, mac, {
-      type: "itv", action: "create_link", cmd, series: "", forced_storage: "undefined", disable_ad: "0", download: "0",
-    });
+    let js: { cmd?: string; error?: string } | null = null;
+    // "limit" = the device's connection(s) are still in use — usually the channel we just left,
+    // which the panel takes a moment to release. Wait and retry before giving up.
+    for (let attempt = 0; attempt < 16; attempt++) { // the panel can hold the slot ~10 s
+      js = await call(s, mac, {
+        type: "itv", action: "create_link", cmd, series: "", forced_storage: "undefined", disable_ad: "0", download: "0",
+      });
+      if (js?.error !== "limit") break;
+      await new Promise((r) => setTimeout(r, 1000));
+    }
+    if (js?.error === "limit") {
+      throw new PortalLimitError(
+        "Connection limit reached for this MAC — another stream is using it (another device, or a recording of a different channel). Raise “max connections” for this MAG device in your panel.",
+      );
+    }
     const url = String(js?.cmd || "").replace(/^(ffmpeg|ffrt\d*|auto)\s+/i, "").trim();
-    if (!/^https?:\/\//i.test(url)) throw new PortalError("Portal did not return a stream link");
+    if (!/^https?:\/\//i.test(url)) {
+      const got = JSON.stringify(js ?? null).slice(0, 300).replace(/(token|mac|play_token)=[^&"]*/gi, "$1=…");
+      throw new PortalError(`Portal did not return a stream link (got ${got})`);
+    }
     return url;
   });
 }

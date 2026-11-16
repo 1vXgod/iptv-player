@@ -11,6 +11,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { findFfmpeg } from "./ffmpeg";
 import { mediaRoots } from "./media";
+import { HubError, isLiveTsUrl, liveSubscribe } from "./stream-hub";
 
 const UPSTREAM_UA = process.env.IPTV_USER_AGENT || "VLC/3.0.20 LibVLC/3.0.20";
 const MAX_TIMER_MS = 2_000_000_000; // setTimeout limit (~23 days); re-armed in steps
@@ -40,11 +41,15 @@ export type PublicRecording = Omit<Recording, "streamUrl"> & { plannedEnd?: numb
 interface Store {
   recs: Map<string, Recording>;
   procs: Map<string, ChildProcess>;
+  unsubs: Map<string, () => void>; // hub subscriptions feeding ffmpeg's stdin
+  direct: Set<string>; // recordings that must bypass the hub (stream turned out not to be raw TS)
   timers: Map<string, NodeJS.Timeout>;
   loaded: boolean;
 }
 const G = globalThis as unknown as { __mxRecorder?: Store };
-const S: Store = (G.__mxRecorder ??= { recs: new Map(), procs: new Map(), timers: new Map(), loaded: false });
+const S: Store = (G.__mxRecorder ??= { recs: new Map(), procs: new Map(), unsubs: new Map(), direct: new Set(), timers: new Map(), loaded: false });
+S.unsubs ??= new Map();
+S.direct ??= new Set();
 
 const dir = () => mediaRoots().recordings;
 const indexFile = () => path.join(dir(), "index.json");
@@ -136,12 +141,20 @@ function begin(id: string) {
   const videoArgs = r.mode === "video"
     ? ["-vf", "yadif=0,scale=-2:720", "-c:v", "libx264", "-preset", "veryfast", "-profile:v", "main", "-pix_fmt", "yuv420p", "-b:v", "3000k", "-maxrate", "3500k", "-bufsize", "6000k"]
     : ["-c:v", "copy"];
+  // Live TS channels are read from the shared stream hub, so watching the channel while it
+  // records doesn't open a second provider connection (which many panels answer by kicking one).
+  const fromHub = isLiveTsUrl(r.streamUrl) && !S.direct.has(id);
+  const inputArgs = fromHub
+    ? ["-fflags", "+genpts+discardcorrupt", "-f", "mpegts", "-i", "pipe:0"]
+    : [
+        "-user_agent", UPSTREAM_UA,
+        "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
+        "-fflags", "+genpts+discardcorrupt",
+        "-i", r.streamUrl,
+      ];
   const args = [
     "-hide_banner", "-loglevel", "error",
-    "-user_agent", UPSTREAM_UA,
-    "-reconnect", "1", "-reconnect_streamed", "1", "-reconnect_delay_max", "5",
-    "-fflags", "+genpts+discardcorrupt",
-    "-i", r.streamUrl,
+    ...inputArgs,
     "-map", "0:v:0?", "-map", "0:a:0?",
     ...videoArgs,
     "-af", "aresample=async=1",
@@ -154,9 +167,27 @@ function begin(id: string) {
   let stderr = "";
   proc.stderr?.on("data", (d: Buffer) => { stderr = (stderr + d.toString()).slice(-600); });
   proc.on("error", (e) => { r.error = e.message; });
+  let retryDirect = false;
+  if (fromHub && proc.stdin) {
+    const stdin = proc.stdin;
+    stdin.on("error", () => { /* ffmpeg finished (e.g. -t reached) */ });
+    let written = 0;
+    S.unsubs.set(id, liveSubscribe(
+      r.streamUrl,
+      (b) => { if (!stdin.destroyed) { written += b.length; stdin.write(b); } },
+      (err) => {
+        if (err instanceof HubError && err.notTs && written === 0) { retryDirect = true; proc.kill("SIGKILL"); return; }
+        try { stdin.end(); } catch { /* closed */ }
+      },
+    ));
+  }
   proc.on("close", () => {
     S.procs.delete(id);
+    S.unsubs.get(id)?.();
+    S.unsubs.delete(id);
     if (r.status === "cancelled") return;
+    if (retryDirect) { S.direct.add(id); begin(id); return; } // not raw TS (e.g. HLS): let ffmpeg connect itself
+    S.direct.delete(id);
     finalize(r, stderr.trim());
   });
   S.procs.set(id, proc);
@@ -235,8 +266,17 @@ export function stopRecording(id: string) {
   }
   const proc = S.procs.get(id);
   if (!proc) return false;
-  // 'q' asks ffmpeg to finish cleanly; force-kill if it doesn't.
-  try { proc.stdin?.write("q"); } catch { /* ignore */ }
+  const unsub = S.unsubs.get(id);
+  if (unsub) {
+    // Hub-fed: stop the data and close ffmpeg's input — it then finishes the file cleanly.
+    unsub();
+    S.unsubs.delete(id);
+    try { proc.stdin?.end(); } catch { /* ignore */ }
+  } else {
+    // Direct: 'q' asks ffmpeg to finish cleanly.
+    try { proc.stdin?.write("q"); } catch { /* ignore */ }
+  }
+  // Force-kill if it doesn't finish.
   setTimeout(() => { if (proc.exitCode === null) proc.kill("SIGKILL"); }, 5000);
   return true;
 }
@@ -248,6 +288,8 @@ export function deleteRecording(id: string) {
   clearTimeout(S.timers.get(id));
   S.timers.delete(id);
   const proc = S.procs.get(id);
+  S.unsubs.get(id)?.();
+  S.unsubs.delete(id);
   if (proc) { r.status = "cancelled"; proc.kill("SIGKILL"); }
   if (r.file) {
     const final = path.join(dir(), r.file);

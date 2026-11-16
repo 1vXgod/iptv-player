@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { codecTags, useStore } from "@/lib/store";
 import { toggleMute } from "./VideoPlayer";
-import { ColorKey, LabelKey, SpeakerIcon, TvIcon, fmtDmyDate, fmtTime, useNow } from "./ui";
+import { ChannelLogo, ColorKey, LabelKey, SpeakerIcon, TvIcon, fmtDmyDate, fmtTime, useNow } from "./ui";
 
 
 export default function InfoBar() {
@@ -35,7 +35,14 @@ export default function InfoBar() {
       {/* left block: icon, number, codec tags */}
       <div className="absolute left-[2.6%] top-[12%] w-[18%]">
         <div className="flex items-center gap-[3cqw]">
-          <TvIcon className="h-[4.6cqw] w-[5.4cqw] text-[#bfe6ff]" />
+          {/* channel logo (falls back to the TV icon when the playlist has none) */}
+          <div className="flex h-[5.2cqw] w-[8.4cqw] shrink-0 items-center justify-center">
+            <ChannelLogo
+              src={current.logo}
+              className="max-h-full max-w-full drop-shadow-[0_0.15cqw_0.3cqw_rgba(0,0,0,.6)]"
+              fallback={<TvIcon className="h-[4.6cqw] w-[5.4cqw] text-[#bfe6ff]" />}
+            />
+          </div>
           <span className="text-[3.2cqw] font-medium leading-none">{current.number}</span>
         </div>
         <div className="mt-[1.5cqw] flex gap-[0.4cqw]">
