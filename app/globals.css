@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+/* Receiver font: the box uses a plain, slightly condensed sans. Change here to re-skin. */
+@theme {
+  --font-receiver: Arial, "Helvetica Neue", Helvetica, "Liberation Sans", sans-serif;
+}
+
+/* ---------- motion ---------- */
+
+/* Loading ring: a static track plus a gradient arc that only rotates (compositor-driven, no repaints). */
+.mx-spinner {
+  position: relative;
+  width: 5.2cqw;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 0.4cqw rgba(60, 90, 130, 0.45);
+}
+.mx-spinner-arc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(38, 198, 240, 0) 0deg, rgba(38, 198, 240, 0.15) 90deg, #26c6f0 300deg, #c8f3ff 355deg, rgba(38, 198, 240, 0) 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 0.4cqw), #000 calc(100% - 0.4cqw + 0.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 0.4cqw), #000 calc(100% - 0.4cqw + 0.5px));
+  animation: mx-spin 0.85s linear infinite;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+@keyframes mx-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Loading overlay fades in after a short delay so quick tunes don't flash. */
+.mx-loading {
+  opacity: 0;
+  animation: mx-fade 220ms ease-out 180ms forwards;
+}
+.mx-fade-in {
+  animation: mx-fade 220ms ease-out both;
+}
+@keyframes mx-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Screens (menu / list) fade in. Opacity-only so blurred background art isn't re-rasterised per frame. */
+.mx-view-in {
+  animation: mx-fade 240ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mx-view-in, .mx-fade-in, .mx-loading { animation-duration: 1ms; animation-delay: 0ms; }
+  .mx-spinner-arc { animation-duration: 1.6s; }
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #000;
+  color: #fff;
+  cursor: default;
+  user-select: none;
+}
