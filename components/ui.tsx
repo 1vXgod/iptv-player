@@ -61,3 +61,20 @@ export function LabelKey({ children }: { children: React.ReactNode }) {
     </span>
   );
 }
+
+/** Speaker icon; crossed out when muted. */
+export function SpeakerIcon({ muted, className = "" }: { muted: boolean; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor" />
+      {muted ? (
+        <path d="M16.5 9.5l5 5M21.5 9.5l-5 5" />
+      ) : (
+        <>
+          <path d="M16 9a4 4 0 0 1 0 6" />
+          <path d="M18.5 6.5a7.5 7.5 0 0 1 0 11" />
+        </>
+      )}
+    </svg>
+  );
+}

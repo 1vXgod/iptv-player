@@ -48,8 +48,20 @@ function restoreSound() {
   const v = playerRef.video;
   if (!autoMuted || !v) return;
   autoMuted = false;
-  v.muted = false;
+  v.muted = useStore.getState().muted; // respect the user's own mute
   useStore.setState({ soundBlocked: false });
+}
+
+/** Keys that toggle mute (U, or the Mute key on media keyboards / remotes). */
+export const isMuteKey = (k: string) => k === "u" || k === "U" || k === "AudioVolumeMute";
+
+/** User mute toggle. If sound was only blocked by autoplay, the first press just turns it on. */
+export function toggleMute() {
+  const v = playerRef.video;
+  if (autoMuted) { restoreSound(); return; }
+  const muted = !useStore.getState().muted;
+  if (v) v.muted = muted;
+  useStore.setState({ muted });
 }
 
 interface Probe {
@@ -116,7 +128,7 @@ export default function VideoPlayer() {
 
   // First key press / click anywhere turns sound back on after an autoplay block.
   useEffect(() => {
-    const on = () => restoreSound();
+    const on = (e: Event) => { if (!(e instanceof KeyboardEvent && isMuteKey(e.key))) restoreSound(); };
     window.addEventListener("keydown", on, true);
     window.addEventListener("pointerdown", on, true);
     return () => {

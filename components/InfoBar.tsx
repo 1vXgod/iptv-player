@@ -1,7 +1,8 @@
 "use client";
 import { useEffect } from "react";
 import { codecTags, useStore } from "@/lib/store";
-import { ColorKey, LabelKey, TvIcon, fmtDmyDate, fmtTime, useNow } from "./ui";
+import { toggleMute } from "./VideoPlayer";
+import { ColorKey, LabelKey, SpeakerIcon, TvIcon, fmtDmyDate, fmtTime, useNow } from "./ui";
 
 
 export default function InfoBar() {
@@ -12,6 +13,7 @@ export default function InfoBar() {
   const playState = useStore((s) => s.playState);
   const now = useNow();
   const { infoTimeout, clock24 } = useStore((s) => s.settings);
+  const muted = useStore((s) => s.muted);
 
   useEffect(() => {
     if (!visible) return;
@@ -80,6 +82,13 @@ export default function InfoBar() {
           <span className="flex items-center gap-[0.8cqw]"><ColorKey color="red" /> Audio</span>
           <span className="flex items-center gap-[0.8cqw]"><ColorKey color="green" /> Timer</span>
           <span className="flex items-center gap-[0.8cqw]"><ColorKey color="blue" /> Timeshift</span>
+          <button
+            onClick={toggleMute}
+            className="flex items-center gap-[0.8cqw] rounded-[0.3cqw] outline-none hover:text-white"
+            title="Mute (U)"
+          >
+            <SpeakerIcon muted={muted} className="h-[1.9cqw] w-[1.9cqw]" /> {muted ? "Unmute" : "Mute"} (U)
+          </button>
           <span className="flex items-center gap-[0.8cqw]"><LabelKey>EPG</LabelKey> EPG</span>
         </div>
       </div>

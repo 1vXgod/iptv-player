@@ -45,6 +45,7 @@ interface State {
   errorDetail: string;
   notice: string; // non-fatal playback note (e.g. audio unsupported)
   soundBlocked: boolean; // browser blocked autoplay with sound; muted until the user interacts
+  muted: boolean; // user mute (U key / mute button)
   method: string; // playback method that is currently working (for the stats panel)
   audioOk: boolean | null; // audio watchdog result: null = unknown / not measurable
   tech: TechInfo;
@@ -146,6 +147,7 @@ export const useStore = create<State>((set, get) => {
     errorDetail: "",
     notice: "",
     soundBlocked: false,
+    muted: false,
     method: "",
     audioOk: null,
     tech: {},

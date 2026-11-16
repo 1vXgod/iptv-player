@@ -5,7 +5,7 @@ import ChannelList, { ROWS } from "./ChannelList";
 import HomeMenu, { TILES, TILE_NAV, TileId } from "./HomeMenu";
 import InfoBar from "./InfoBar";
 import PlaylistLoader, { Placeholder } from "./PlaylistLoader";
-import VideoPlayer from "./VideoPlayer";
+import VideoPlayer, { isMuteKey, toggleMute } from "./VideoPlayer";
 import ChannelManager from "./ChannelManager";
 import SettingsScreen from "./SettingsScreen";
 import CAScreen from "./CAScreen";
@@ -58,6 +58,8 @@ export default function Receiver() {
       }
       if (inField) return;
       // These screens handle their own keys.
+      // Mute works on every screen.
+      if (isMuteKey(k)) { e.preventDefault(); toggleMute(); return; }
       if (["manager", "settings", "ca", "pvr", "files"].includes(s.view)) return;
 
       // Watching a recording / file: playback keys instead of zapping.
@@ -180,7 +182,7 @@ function TvHelp() {
       className={`absolute left-[2%] top-[3%] z-30 rounded-[0.5cqw] bg-black/55 px-[1.2cqw] py-[0.8cqw] text-[1.05cqw] leading-[1.6] text-white/85 transition-opacity duration-700 ${show ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
       <b className="text-[#5fdcff]">▲▼◀▶</b> change channel · <b className="text-[#5fdcff]">OK/Enter</b> channel list ·{" "}
-      <b className="text-[#5fdcff]">M</b> menu · <b className="text-[#5fdcff]">i</b> info · <b className="text-[#5fdcff]">R</b> record · <b className="text-[#5fdcff]">S</b> stats · <b className="text-[#5fdcff]">0-9</b> number
+      <b className="text-[#5fdcff]">M</b> menu · <b className="text-[#5fdcff]">i</b> info · <b className="text-[#5fdcff]">R</b> record · <b className="text-[#5fdcff]">S</b> stats · <b className="text-[#5fdcff]">U</b> mute · <b className="text-[#5fdcff]">0-9</b> number
     </div>
   );
 }

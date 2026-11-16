@@ -54,6 +54,9 @@ For MPEG-TS links, the probe also reads the stream's codec table:
 | List | OK | Play the highlighted channel (press OK again to go fullscreen) |
 | List / Menu | Esc | Go back to TV |
 | Anywhere | 0–9 | Jump to a channel number |
+| Anywhere | U / Mute media key | Mute or unmute (also the speaker button in the info bar, or click the corner icon) |
+| TV | S | Stream stats panel |
+| TV | R | Start or stop recording the current channel |
 
 ### Installation: three ways to add channels
 

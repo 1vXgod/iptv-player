@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { fmtDuration, startRecording, stopRecording, useRecordings } from "@/lib/pvr-client";
 import { useStore } from "@/lib/store";
-import { LabelKey, useNow } from "./ui";
-import { playerRef } from "./VideoPlayer";
+import { LabelKey, SpeakerIcon, useNow } from "./ui";
+import { playerRef, toggleMute } from "./VideoPlayer";
 
 /** Seek / pause controls for recordings and files. Called from the Receiver's key handler. */
 export function vodKey(key: string): boolean {
@@ -98,6 +98,7 @@ export function RecBadge() {
   const view = useStore((s) => s.view);
   const current = useStore((s) => s.current);
   const { recs, refresh } = useRecordings(view === "tv");
+  const muted = useStore((s) => s.muted);
   const now = useNow();
   const [msg, setMsg] = useState("");
 
@@ -125,6 +126,15 @@ export function RecBadge() {
   if (view !== "tv") return null;
   return (
     <div className="pointer-events-none absolute right-[2.4%] top-[3.5%] z-30 flex flex-col items-end gap-[0.6cqw]">
+      {muted && (
+        <button
+          onClick={toggleMute}
+          title="Unmute (U)"
+          className="mx-fade-in pointer-events-auto flex h-[4.2cqw] w-[4.2cqw] items-center justify-center rounded-[0.6cqw] bg-black/60 text-white outline-none hover:bg-black/75"
+        >
+          <SpeakerIcon muted className="h-[2.8cqw] w-[2.8cqw]" />
+        </button>
+      )}
       {active.length > 0 && (
         <div className="flex items-center gap-[0.8cqw] rounded-[0.5cqw] bg-black/60 px-[1cqw] py-[0.45cqw] text-[1.15cqw] font-semibold">
           <span className="h-[1cqw] w-[1cqw] animate-pulse rounded-full bg-[#ff3b3b] shadow-[0_0_0.8cqw_#ff3b3b]" />
