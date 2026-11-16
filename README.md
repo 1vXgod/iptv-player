@@ -44,8 +44,9 @@ For MPEG-TS links, the probe also reads the stream's codec table:
 
 | Where | Key | Action |
 |---|---|---|
-| TV | ▲ ▶ / PgUp / + | Next channel |
-| TV | ▼ ◀ / PgDn / − | Previous channel |
+| TV | ▶ / PgUp / + | Next channel |
+| TV | ◀ / PgDn / − | Previous channel |
+| TV | ▲ / ▼ | Volume up / down (shown on screen, remembered; unmutes if muted) |
 | TV | OK (Enter) | Open the channel list, or retry a dead stream |
 | TV | i / Esc | Toggle / hide the info bar (it hides by itself after 5 s) |
 | TV | M / Home / Backspace | Open the home menu |

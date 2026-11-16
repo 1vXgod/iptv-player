@@ -125,6 +125,11 @@ export default function VideoPlayer() {
   const setNotice = useStore((s) => s.setNotice);
   const notice = useStore((s) => s.notice);
   const soundBlocked = useStore((s) => s.soundBlocked);
+  const volume = useStore((s) => s.volume);
+
+  useEffect(() => {
+    if (videoRef.current) videoRef.current.volume = volume;
+  }, [volume, tuneNonce]);
 
   // First key press / click anywhere turns sound back on after an autoplay block.
   useEffect(() => {

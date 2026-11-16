@@ -46,6 +46,8 @@ interface State {
   notice: string; // non-fatal playback note (e.g. audio unsupported)
   soundBlocked: boolean; // browser blocked autoplay with sound; muted until the user interacts
   muted: boolean; // user mute (U key / mute button)
+  volume: number; // 0..1, remembered between sessions
+  volumeNonce: number; // bumps on every change so the on-screen volume bar re-shows
   method: string; // playback method that is currently working (for the stats panel)
   audioOk: boolean | null; // audio watchdog result: null = unknown / not measurable
   tech: TechInfo;
@@ -68,6 +70,7 @@ interface State {
   setPlayState: (s: PlayState, detail?: string) => void;
   setTech: (t: TechInfo) => void;
   setNotice: (n: string) => void;
+  changeVolume: (delta: number) => void;
   updateSettings: (p: Partial<Settings>) => void;
   // channel manager
   moveChannel: (from: number, to: number) => void;
@@ -80,6 +83,7 @@ const LS_PLAYLIST = "mirax.playlist";
 const LS_CHANNEL = "mirax.lastChannel";
 const LS_SETTINGS = "mirax.settings";
 const LS_ORDER = "mirax.order";
+const LS_VOLUME = "mirax.volume";
 
 function lsGet(k: string): string | null {
   try { return localStorage.getItem(k); } catch { return null; }
@@ -148,6 +152,8 @@ export const useStore = create<State>((set, get) => {
     notice: "",
     soundBlocked: false,
     muted: false,
+    volume: 1,
+    volumeNonce: 0,
     method: "",
     audioOk: null,
     tech: {},
@@ -239,6 +245,11 @@ export const useStore = create<State>((set, get) => {
     },
     setPlayState(s, detail = "") { set({ playState: s, errorDetail: detail }); },
     setNotice(n) { set({ notice: n }); },
+    changeVolume(delta) {
+      const volume = Math.round(Math.max(0, Math.min(1, get().volume + delta)) * 100) / 100;
+      set({ volume, volumeNonce: get().volumeNonce + 1 });
+      lsSet(LS_VOLUME, String(volume));
+    },
     setTech(t) { set({ tech: { ...get().tech, ...t } }); },
     updateSettings(p) {
       const settings = { ...get().settings, ...p };
@@ -274,7 +285,8 @@ export const useStore = create<State>((set, get) => {
       if (get().hydrated) return;
       let settings = DEFAULT_SETTINGS;
       try { settings = { ...DEFAULT_SETTINGS, ...JSON.parse(lsGet(LS_SETTINGS) || "{}") }; } catch { /* defaults */ }
-      set({ hydrated: true, settings, view: settings.startView });
+      const savedVol = parseFloat(lsGet(LS_VOLUME) ?? "");
+      set({ hydrated: true, settings, view: settings.startView, volume: Number.isFinite(savedVol) ? Math.max(0, Math.min(1, savedVol)) : 1 });
       const saved = lsGet(LS_PLAYLIST);
       const last = lsGet(LS_CHANNEL) ?? undefined;
       if (saved) {

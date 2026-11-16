@@ -224,3 +224,32 @@ export function StatsPanel() {
     </div>
   );
 }
+
+/** On-screen volume bar: pops up for a moment whenever the volume changes (or the mute state changes). */
+export function VolumeOsd() {
+  const volume = useStore((s) => s.volume);
+  const muted = useStore((s) => s.muted);
+  const nonce = useStore((s) => s.volumeNonce);
+  const [show, setShow] = useState(false);
+  const first = useRef(true);
+
+  useEffect(() => {
+    if (first.current) { first.current = false; return; } // don't flash on page load
+    setShow(true);
+    const id = window.setTimeout(() => setShow(false), 1600);
+    return () => window.clearTimeout(id);
+  }, [nonce, muted]);
+
+  const pct = muted ? 0 : Math.round(volume * 100);
+  return (
+    <div
+      className={`pointer-events-none absolute left-1/2 top-[8%] z-40 flex -translate-x-1/2 items-center gap-[1.2cqw] rounded-[0.8cqw] bg-black/70 px-[1.6cqw] py-[1cqw] text-white shadow-lg transition-opacity duration-200 ${show ? "opacity-100" : "opacity-0"}`}
+    >
+      <SpeakerIcon muted={muted || volume === 0} className="h-[2.6cqw] w-[2.6cqw]" />
+      <div className="h-[0.8cqw] w-[22cqw] overflow-hidden rounded-full bg-white/25">
+        <div className="h-full rounded-full bg-[#16c6f2]" style={{ width: `${pct}%`, transition: "width 120ms ease-out" }} />
+      </div>
+      <span className="w-[4.2cqw] text-right text-[1.6cqw] font-semibold tabular-nums">{pct}%</span>
+    </div>
+  );
+}

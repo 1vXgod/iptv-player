@@ -11,7 +11,7 @@ import SettingsScreen from "./SettingsScreen";
 import CAScreen from "./CAScreen";
 import PvrScreen from "./PvrScreen";
 import FileListScreen from "./FileListScreen";
-import { RecBadge, StatsPanel, VodBar, vodKey } from "./Playback";
+import { RecBadge, StatsPanel, VodBar, VolumeOsd, vodKey } from "./Playback";
 
 /** The whole "box": a 16:9 stage that scales to the window, plus remote-style key handling. */
 export default function Receiver() {
@@ -126,8 +126,13 @@ export default function Receiver() {
           return true;
         }
         // full-screen TV
-        if (k === "ArrowUp" || k === "ArrowRight" || k === "PageUp" || k === "+") s.zap(1);
-        else if (k === "ArrowDown" || k === "ArrowLeft" || k === "PageDown" || k === "-") s.zap(-1);
+        // ◀▶ (and PgUp/PgDn, +/−) change channel; ▲▼ change volume.
+        if (k === "ArrowRight" || k === "PageUp" || k === "+") s.zap(1);
+        else if (k === "ArrowLeft" || k === "PageDown" || k === "-") s.zap(-1);
+        else if (k === "ArrowUp" || k === "ArrowDown") {
+          if (s.muted) toggleMute(); // turning the volume up/down while muted unmutes, like a TV
+          s.changeVolume(k === "ArrowUp" ? 0.05 : -0.05);
+        }
         else if (k === "Enter") {
           if (s.playState === "error" && s.current) s.play({ ...s.current }); // retry
           else s.setView("list");
@@ -162,6 +167,7 @@ export default function Receiver() {
         {view === "tv" && isVod && <VodBar />}
         <RecBadge />
         <StatsPanel />
+        <VolumeOsd />
         {view === "tv" && !isVod && <TvHelp />}
 
         {digits && (
@@ -190,7 +196,7 @@ function TvHelp() {
     <div
       className={`absolute left-[2%] top-[3%] z-30 rounded-[0.5cqw] bg-black/55 px-[1.2cqw] py-[0.8cqw] text-[1.05cqw] leading-[1.6] text-white/85 transition-opacity duration-700 ${show ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
-      <b className="text-[#5fdcff]">▲▼◀▶</b> change channel · <b className="text-[#5fdcff]">OK/Enter</b> channel list ·{" "}
+      <b className="text-[#5fdcff]">◀▶</b> channel · <b className="text-[#5fdcff]">▲▼</b> volume · <b className="text-[#5fdcff]">OK/Enter</b> channel list ·{" "}
       <b className="text-[#5fdcff]">M</b> menu · <b className="text-[#5fdcff]">i</b> info · <b className="text-[#5fdcff]">R</b> record · <b className="text-[#5fdcff]">S</b> stats · <b className="text-[#5fdcff]">U</b> mute · <b className="text-[#5fdcff]">0-9</b> number
     </div>
   );
