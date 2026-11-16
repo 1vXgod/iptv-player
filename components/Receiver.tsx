@@ -19,7 +19,15 @@ export default function Receiver() {
   const overlay = useStore((s) => s.overlay);
   const placeholderTitle = useStore((s) => s.placeholderTitle);
   const isVod = useStore((s) => !!s.current?.vod);
-  const [tile, setTile] = useState<TileId>("channels");
+  const [tile, setTile] = useState<TileId>("preview");
+
+  // Coming to the menu from live TV or the channel list: focus the live TV box (like the receiver).
+  // Coming back from a sub-screen (Settings, PVR, …): keep that tile focused.
+  const prevView = useRef(view);
+  useEffect(() => {
+    if (view === "home" && (prevView.current === "tv" || prevView.current === "list")) setTile("preview");
+    prevView.current = view;
+  }, [view]);
   const [digits, setDigits] = useState("");
   const digitTimer = useRef<number | undefined>(undefined);
 
