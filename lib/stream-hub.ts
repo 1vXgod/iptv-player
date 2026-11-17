@@ -8,6 +8,11 @@
  *
  * The hub reconnects upstream on drops, keeps the last few MB so late joiners start instantly,
  * and closes the upstream a few seconds after the last consumer leaves.
+ *
+ * Keyframe gate: a live viewer who joins mid-GOP hands the decoder frames whose reference pictures it never saw.
+ * A PC decoder quietly drops them; phone hardware decoders draw green blocks / lines until the next keyframe (and some
+ * streams throw "mmco"/"missing reference" errors for much longer). So every new viewer gets the stream's PAT/PMT
+ * first and then data that STARTS ON A KEYFRAME (H.264). This also gives recordings and ffmpeg a clean start.
  */
 import { findSync } from "./ts";
 
@@ -17,6 +22,7 @@ const RING_BYTES = 3 * 1024 * 1024; // recent data replayed to late joiners (PAT
 const LINGER_MS = 4000; // keep upstream open briefly after the last consumer (fast re-tune / probe -> play)
 const MAX_RETRIES = 8;
 const NOT_TS_LIMIT = 512 * 1024; // give up if no TS sync is found in this much data
+const GATE_TIMEOUT_MS = 3000; // streams that never signal a keyframe: start anyway after this long
 
 export class HubError extends Error {
   constructor(msg: string, readonly notTs = false) { super(msg); }
@@ -31,6 +37,13 @@ class Hub {
   private ctrl: AbortController | null = null;
   private lingerTimer: NodeJS.Timeout | null = null;
   private dataWaiters: (() => void)[] = [];
+  // keyframe gate state
+  private pat: Uint8Array | null = null;
+  private pmt: Uint8Array | null = null;
+  private pmtPid = -1;
+  private videoPid = -1;
+  private gate: "unknown" | "h264" | "none" = "unknown"; // none = not H.264 (or no video): no gating
+  private waiting = new Map<Sub, NodeJS.Timeout>(); // viewers waiting for their first keyframe
   closed = false;
   bytesIn = 0;
   status = 0;
@@ -111,7 +124,17 @@ class Hub {
     this.ring.push(b);
     this.ringBytes += b.length;
     while (this.ringBytes > RING_BYTES && this.ring.length > 1) this.ringBytes -= this.ring.shift()!.length;
-    for (const s of this.subs) if (!s.push(b)) this.drop(s);
+    this.trackTables(b);
+    // where (if anywhere) in this chunk may waiting viewers start?
+    let openAt = -1;
+    if (this.waiting.size) openAt = this.gate === "none" ? 0 : this.gate === "h264" ? this.findKeyframe(b, 0) : -1;
+    for (const s of this.subs) {
+      if (this.waiting.has(s)) {
+        if (openAt >= 0) this.open(s, b.subarray(openAt));
+        continue;
+      }
+      if (!s.push(b)) this.drop(s);
+    }
     const w = this.dataWaiters.splice(0);
     w.forEach((f) => f());
   }
@@ -119,11 +142,113 @@ class Hub {
   subscribe(s: Sub): () => void {
     if (this.lingerTimer) { clearTimeout(this.lingerTimer); this.lingerTimer = null; }
     this.subs.add(s);
-    for (const b of this.ring) if (!s.push(b)) { this.drop(s); break; }
+    if (this.gate === "none") {
+      for (const b of this.ring) if (!s.push(b)) { this.drop(s); break; }
+    } else {
+      // start on the most recent keyframe in the buffer, if it holds one...
+      if (this.gate === "h264") {
+        const all = Buffer.concat(this.ring);
+        const k = this.lastKeyframe(all);
+        if (k >= 0) { this.sendHeaders(s) && s.push(all.subarray(k)) || this.drop(s); return () => this.drop(s); }
+      }
+      // ...otherwise wait for the next one (with a fallback so odd streams still start)
+      this.waiting.set(s, setTimeout(() => {
+        if (!this.waiting.has(s)) return;
+        this.waiting.delete(s);
+        if (this.sendHeaders(s)) for (const b of this.ring) if (!s.push(b)) { this.drop(s); break; }
+      }, GATE_TIMEOUT_MS));
+    }
     return () => this.drop(s);
   }
 
+  private open(s: Sub, data: Uint8Array) {
+    const t = this.waiting.get(s);
+    if (t) clearTimeout(t);
+    this.waiting.delete(s);
+    if (!(this.sendHeaders(s) && s.push(data))) this.drop(s);
+  }
+
+  /** PAT + PMT first, so the decoder knows the streams before the first picture arrives. */
+  private sendHeaders(s: Sub): boolean {
+    if (this.pat && !s.push(this.pat)) return false;
+    if (this.pmt && !s.push(this.pmt)) return false;
+    return true;
+  }
+
+  /** Remember the latest PAT / PMT packets and which PID carries the (H.264) video. */
+  private trackTables(b: Uint8Array) {
+    for (let o = 0; o + PKT <= b.length; o += PKT) {
+      const pid = ((b[o + 1] & 0x1f) << 8) | b[o + 2];
+      if (!(b[o + 1] & 0x40)) continue; // payload_unit_start only
+      if (pid === 0) {
+        this.pat = b.slice(o, o + PKT);
+        const i0 = this.payloadStart(b, o);
+        if (i0 < 0) continue;
+        const i = i0 + 1 + b[i0];
+        const secLen = ((b[i + 1] & 0x0f) << 8) | b[i + 2];
+        for (let j = i + 8; j < i + 3 + secLen - 4 && j + 3 < o + PKT; j += 4) {
+          if (((b[j] << 8) | b[j + 1]) !== 0) { this.pmtPid = ((b[j + 2] & 0x1f) << 8) | b[j + 3]; break; }
+        }
+      } else if (pid === this.pmtPid) {
+        this.pmt = b.slice(o, o + PKT);
+        const i0 = this.payloadStart(b, o);
+        if (i0 < 0) continue;
+        const i = i0 + 1 + b[i0];
+        if (b[i] !== 0x02) continue;
+        const secLen = ((b[i + 1] & 0x0f) << 8) | b[i + 2];
+        const piLen = ((b[i + 10] & 0x0f) << 8) | b[i + 11];
+        let video = -1, type = 0;
+        for (let j = i + 12 + piLen; j + 4 < i + 3 + secLen - 4 && j + 4 < o + PKT; ) {
+          const st = b[j];
+          if ((st === 0x1b || st === 0x24 || st === 0x02 || st === 0x01) && video < 0) { video = ((b[j + 1] & 0x1f) << 8) | b[j + 2]; type = st; }
+          j += 5 + (((b[j + 3] & 0x0f) << 8) | b[j + 4]);
+        }
+        this.videoPid = video;
+        this.gate = type === 0x1b ? "h264" : "none";
+      }
+    }
+  }
+
+  private payloadStart(b: Uint8Array, o: number): number {
+    const afc = (b[o + 3] >> 4) & 3;
+    if (!(afc & 1)) return -1;
+    let i = o + 4;
+    if (afc & 2) i += 1 + b[o + 4];
+    return i < o + PKT ? i : -1;
+  }
+
+  /** Is the TS packet at b[o..] the start of an H.264 keyframe (random-access flag, IDR or SPS)? */
+  private isKeyframe(b: Uint8Array, o: number): boolean {
+    if (this.videoPid < 0) return false;
+    if ((((b[o + 1] & 0x1f) << 8) | b[o + 2]) !== this.videoPid) return false;
+    const afc = (b[o + 3] >> 4) & 3;
+    if (!(b[o + 1] & 0x40)) return false; // keyframes start a new PES
+    if ((afc & 2) && b[o + 4] > 0 && (b[o + 5] & 0x40)) return true; // random_access_indicator
+    let i = this.payloadStart(b, o);
+    if (i < 0 || b[i] !== 0 || b[i + 1] !== 0 || b[i + 2] !== 1) return false;
+    i += 9 + b[i + 8]; // skip the PES header
+    for (; i + 4 < o + PKT; i++) {
+      if (b[i] === 0 && b[i + 1] === 0 && (b[i + 2] === 1 || (b[i + 2] === 0 && b[i + 3] === 1))) {
+        const nal = b[b[i + 2] === 1 ? i + 3 : i + 4] & 0x1f;
+        if (nal === 5 || nal === 7) return true; // IDR slice / SPS
+      }
+    }
+    return false;
+  }
+
+  private findKeyframe(b: Uint8Array, from: number): number {
+    for (let o = from; o + PKT <= b.length; o += PKT) if (this.isKeyframe(b, o)) return o;
+    return -1;
+  }
+
+  private lastKeyframe(b: Uint8Array): number {
+    for (let o = b.length - PKT; o >= 0; o -= PKT) if (this.isKeyframe(b, o)) return o;
+    return -1;
+  }
+
   private drop(s: Sub) {
+    const t = this.waiting.get(s);
+    if (t) { clearTimeout(t); this.waiting.delete(s); }
     if (!this.subs.delete(s)) return;
     s.close();
     this.armLinger();
@@ -135,6 +260,8 @@ class Hub {
     if (err) this.error = err;
     if (this.lingerTimer) { clearTimeout(this.lingerTimer); this.lingerTimer = null; }
     this.ctrl?.abort();
+    for (const t of this.waiting.values()) clearTimeout(t);
+    this.waiting.clear();
     for (const s of [...this.subs]) s.close(err);
     this.subs.clear();
     this.dataWaiters.splice(0).forEach((f) => f());
