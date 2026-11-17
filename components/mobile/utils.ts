@@ -99,19 +99,42 @@ export async function lockLandscape(): Promise<boolean> {
   } catch { return false; }
 }
 
-type NativeFsVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+type NativeFsVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void; webkitExitFullscreen?: () => void };
 
 /** Does this browser have the native (iOS-style) video fullscreen, which turns with the phone? */
 export const hasNativeVideoFullscreen = () => typeof (playerRef.video as NativeFsVideo | null)?.webkitEnterFullscreen === "function";
 
 /**
- * iPhone / iPad: open the system's own video fullscreen. Unlike anything a web page can do, it follows the phone's real
- * orientation — this is how YouTube gets true landscape in mobile Safari. Must be called synchronously from a tap.
+ * iPhone / iPad: open the system's own video fullscreen. Unlike anything a web page can do, it turns the screen to
+ * landscape. Its controls are Apple's and can't be hidden or drawn over, so we only use it to GET the rotation: a moment
+ * after it opens we close it again ourselves, leaving the phone in landscape with the app's own player and controls.
+ * `onDone` then reports whether the page really ended up landscape. Must be called synchronously from a tap.
  */
-export function enterNativeVideoFullscreen(): boolean {
+export function enterNativeVideoFullscreen(onDone?: (landscape: boolean) => void): boolean {
   const v = playerRef.video as NativeFsVideo | null;
   if (!v || typeof v.webkitEnterFullscreen !== "function") return false;
-  try { v.webkitEnterFullscreen(); return true; } catch { return false; } // throws until the picture has started
+
+  const onBegin = () => {
+    v.removeEventListener("webkitbeginfullscreen", onBegin);
+    const onEnd = () => {
+      v.removeEventListener("webkitendfullscreen", onEnd);
+      window.setTimeout(() => {
+        if (v.paused) void v.play().catch(() => {});
+        onDone?.(window.matchMedia("(orientation: landscape)").matches);
+      }, 500); // let the page settle into its new orientation
+    };
+    v.addEventListener("webkitendfullscreen", onEnd);
+    // give iOS a moment to complete the turn, then close the system player (the user can also close it first)
+    window.setTimeout(() => { try { v.webkitExitFullscreen?.(); } catch { /* already closed */ } }, 700);
+  };
+  if (onDone) v.addEventListener("webkitbeginfullscreen", onBegin);
+  try {
+    v.webkitEnterFullscreen();
+    return true;
+  } catch { // throws until the picture has started
+    v.removeEventListener("webkitbeginfullscreen", onBegin);
+    return false;
+  }
 }
 
 export function fmtClock(sec: number) {

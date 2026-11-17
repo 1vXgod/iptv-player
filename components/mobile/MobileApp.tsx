@@ -65,8 +65,8 @@ export default function MobileApp() {
   /**
    * Rotate button — real rotation of the phone, like YouTube:
    *  1. Android Chrome: fullscreen + landscape lock (the display itself turns).
-   *  2. iPhone / iPad: the system's native video fullscreen, which follows the phone's orientation. (Web pages can't
-   *     rotate an iPhone any other way. The native player has its own controls, so our gestures don't apply there.)
+   *  2. iPhone / iPad: the system's native video fullscreen turns the screen; we close it again right away so the app's
+   *     own landscape player (with its gestures and controls) is what you use. (Web pages can't rotate an iPhone any other way.)
    *  3. Last resort (desktop browsers): turn the picture sideways inside the app.
    * The first calls must happen synchronously inside the tap, hence the up-front capability checks.
    */
@@ -83,9 +83,15 @@ export default function MobileApp() {
       return;
     }
     if (hasNativeVideoFullscreen()) {
-      // iPhone / iPad: the system player takes over and turns with the phone. It refuses until a picture is playing.
+      // iPhone / iPad: briefly open the system player, which turns the screen to landscape, then close it again so you
+      // land in the app's own landscape player (Apple's buttons can't be hidden). It refuses until a picture is playing.
       // Never fake the rotation here: inside the browser it would still show Chrome's / Safari's bars, sideways.
-      if (!enterNativeVideoFullscreen()) say("On iPhone, Rotate needs a playing picture. Start a channel, then tap Rotate (or just turn your phone sideways).");
+      const started = enterNativeVideoFullscreen((landscape) => {
+        if (landscape) return; // the page is landscape now: the full-screen player takes over by itself
+        setManualFs(true); // the screen didn't stay turned: at least show the full-screen player
+        say("Turn your phone sideways for landscape.");
+      });
+      if (!started) say("On iPhone, Rotate needs a playing picture. Start a channel, then tap Rotate (or just turn your phone sideways).");
       return;
     }
     setManualFs(true);

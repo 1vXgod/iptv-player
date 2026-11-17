@@ -160,7 +160,7 @@ The app looks at the device it's running on and picks the right interface:
   - Turn the phone sideways for a full-screen player, or use the full-screen button.
   - **Rotate** button (in the strip under the picture, and on the picture when you tap it):
     - **Android Chrome:** it goes full screen and locks the display to landscape, so the whole phone rotates.
-    - **iPhone / iPad:** web pages can't rotate the display, so it opens the system's native video fullscreen. That turns with the phone's real orientation, the same way YouTube does it in Safari. The native player has its own controls, so the swipe gestures don't apply there.
+    - **iPhone / iPad:** web pages can't rotate the display, so it briefly opens the system's native video fullscreen, which turns the screen to landscape, and then closes it again by itself. You land in the app's own landscape player with all its gestures and controls. (Apple's native player buttons can't be hidden or drawn over, which is why it isn't left open.) If the screen doesn't stay landscape, you get the full-screen player and a hint to turn the phone.
       - If portrait orientation lock is on in Control Center, turn it off.
       - The picture has to have started playing first.
     - **Anywhere else** (for example a desktop browser), it turns the picture sideways inside the app, and gestures, controls and the channel drawer follow. The back arrow returns to portrait.
@@ -201,6 +201,8 @@ Phones are much stricter than PCs about video. Raw IPTV streams are often interl
   3. On your phone (same Wi-Fi), open `http://<your-PC-IP>:3001`.
   4. Add the page to your Home Screen if you like.
   Over plain `http://` the browser disables the "keep screen on" feature, but everything else works.
+- **Use your PC from anywhere (mobile data, away from home).** Install [Tailscale](https://tailscale.com) on the PC and on the phone and sign in to both with the same account. Then open `http://<PC's Tailscale name or IP>:3001` on the phone. Tailscale is a private connection between your own devices, so nothing is exposed to the internet. For `https://` (full-screen install and screen-stays-on), Tailscale can also publish the port with `tailscale serve --bg 3001`. I haven't tested this part.
+- **Why only a few channels glitch.** Some providers send H.264 that breaks the standard rules (for example 5 reference frames where the level allows 4, or damaged reference lists). A PC decoder shrugs that off, but a phone's hardware decoder draws green lines. The only fix is for ffmpeg to re-encode the video on the server, which is exactly what the conversion above does. The server also starts every viewer on a keyframe, which removes the glitches you'd see for the first second after tuning.
 - **Vercel can't do this.** Vercel has no ffmpeg and limits how long a stream can run. On a Vercel deployment, channels with MP2 audio have no sound and interlaced channels can show green lines. The phone layout warns you when the server has no ffmpeg. To host it online, use a server that allows ffmpeg and long-running connections (a VPS or Docker host).
 
 ### TV layout (PC)
