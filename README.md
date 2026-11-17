@@ -159,10 +159,12 @@ The app looks at the device it's running on and picks the right interface:
 - **Full screen:**
   - Turn the phone sideways for a full-screen player, or use the full-screen button.
   - **Rotate** button (in the strip under the picture, and on the picture when you tap it):
-    - On Android Chrome it goes full screen and locks the display to landscape.
-    - On an iPhone, where browsers can't lock the screen, the picture is turned sideways inside the app, and you turn the phone to match.
-    - Gestures, controls and the channel drawer all follow the rotation. The back arrow returns to portrait.
-    - Turning the phone sideways for real switches to the normal landscape view.
+    - **Android Chrome:** it goes full screen and locks the display to landscape, so the whole phone rotates.
+    - **iPhone / iPad:** web pages can't rotate the display, so it opens the system's native video fullscreen. That turns with the phone's real orientation, the same way YouTube does it in Safari. The native player has its own controls, so the swipe gestures don't apply there.
+      - If portrait orientation lock is on in Control Center, turn it off.
+      - The picture has to have started playing first.
+    - **Anywhere else** (for example a desktop browser), it turns the picture sideways inside the app, and gestures, controls and the channel drawer follow. The back arrow returns to portrait.
+    - Turning the phone sideways for real always switches to the normal landscape layout.
   - Tap the picture for controls: previous and next channel, mute, record, and a channel drawer.
 
 **Gestures on the picture**

@@ -82,6 +82,38 @@ export async function setBrowserFullscreen(on: boolean) {
   } catch { /* not allowed or not supported */ }
 }
 
+/** Can this browser lock the display to landscape? (Android Chrome yes; iPhone / iPad Safari and Chrome never.) */
+export function canLockLandscape(): boolean {
+  const el = document.documentElement as FsEl;
+  return typeof (screen.orientation as Orient | undefined)?.lock === "function" && !!(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+
+/** Fullscreen + landscape lock. Resolves true only if the lock was granted. Call it straight from a tap. */
+export async function lockLandscape(): Promise<boolean> {
+  const doc = document as FsDoc;
+  const el = document.documentElement as FsEl;
+  try {
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) await (el.requestFullscreen?.() ?? el.webkitRequestFullscreen?.());
+    await (screen.orientation as Orient).lock?.("landscape");
+    return true;
+  } catch { return false; }
+}
+
+type NativeFsVideo = HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+
+/** Does this browser have the native (iOS-style) video fullscreen, which turns with the phone? */
+export const hasNativeVideoFullscreen = () => typeof (playerRef.video as NativeFsVideo | null)?.webkitEnterFullscreen === "function";
+
+/**
+ * iPhone / iPad: open the system's own video fullscreen. Unlike anything a web page can do, it follows the phone's real
+ * orientation — this is how YouTube gets true landscape in mobile Safari. Must be called synchronously from a tap.
+ */
+export function enterNativeVideoFullscreen(): boolean {
+  const v = playerRef.video as NativeFsVideo | null;
+  if (!v || typeof v.webkitEnterFullscreen !== "function") return false;
+  try { v.webkitEnterFullscreen(); return true; } catch { return false; } // throws until the picture has started
+}
+
 export function fmtClock(sec: number) {
   if (!Number.isFinite(sec) || sec < 0) sec = 0;
   const s = Math.floor(sec);

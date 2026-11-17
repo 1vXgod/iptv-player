@@ -9,7 +9,7 @@ import PlaylistTab from "./PlaylistTab";
 import RecordingsTab from "./RecordingsTab";
 import SettingsTab from "./SettingsTab";
 import { Sheet } from "./ui";
-import { ROTATED_FRAME, setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
+import { buzz, canLockLandscape, enterNativeVideoFullscreen, lockLandscape, ROTATED_FRAME, setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
 
 type Tab = "channels" | "recordings" | "playlist" | "settings";
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
@@ -63,14 +63,28 @@ export default function MobileApp() {
   }, [manualFs]);
 
   /**
-   * Rotate button. First ask the browser properly (fullscreen + landscape lock: works on Android Chrome). If the phone
-   * is still upright a moment later (iPhone, or the lock was refused) turn the picture sideways inside the app instead.
+   * Rotate button — real rotation of the phone, like YouTube:
+   *  1. Android Chrome: fullscreen + landscape lock (the display itself turns).
+   *  2. iPhone / iPad: the system's native video fullscreen, which follows the phone's orientation. (Web pages can't
+   *     rotate an iPhone any other way. The native player has its own controls, so our gestures don't apply there.)
+   *  3. Last resort (desktop browsers, or the picture hasn't started yet): turn the picture sideways inside the app.
+   * The first calls must happen synchronously inside the tap, hence the up-front capability checks.
    */
   const rotate = useCallback(async () => {
+    buzz(8);
+    if (canLockLandscape()) {
+      setManualFs(true);
+      if (await lockLandscape()) {
+        await new Promise((r) => setTimeout(r, 1200)); // give the display time to turn
+        if (!window.matchMedia("(orientation: landscape)").matches) setRotated(true);
+        return;
+      }
+      setRotated(true);
+      return;
+    }
+    if (enterNativeVideoFullscreen()) return; // the system player takes over and turns with the phone
     setManualFs(true);
-    await setBrowserFullscreen(true); // must start inside the tap, before any other await
-    await new Promise((r) => setTimeout(r, 400));
-    if (!window.matchMedia("(orientation: landscape)").matches) setRotated(true);
+    setRotated(true);
   }, []);
 
   // anything `fixed` inside a rotated frame is positioned relative to it, so drawers and toasts turn with the picture
