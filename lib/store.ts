@@ -46,6 +46,7 @@ interface State {
   notice: string; // non-fatal playback note (e.g. audio unsupported)
   soundBlocked: boolean; // browser blocked autoplay with sound; muted until the user interacts
   muted: boolean; // user mute (U key / mute button)
+  touch: boolean; // last input was a finger/pen: show touch UI (remote, tap-to-play rows)
   volume: number; // 0..1, remembered between sessions
   volumeNonce: number; // bumps on every change so the on-screen volume bar re-shows
   method: string; // playback method that is currently working (for the stats panel)
@@ -71,6 +72,7 @@ interface State {
   setTech: (t: TechInfo) => void;
   setNotice: (n: string) => void;
   changeVolume: (delta: number) => void;
+  setTouch: (v: boolean) => void;
   updateSettings: (p: Partial<Settings>) => void;
   // channel manager
   moveChannel: (from: number, to: number) => void;
@@ -152,6 +154,7 @@ export const useStore = create<State>((set, get) => {
     notice: "",
     soundBlocked: false,
     muted: false,
+    touch: false,
     volume: 1,
     volumeNonce: 0,
     method: "",
@@ -245,6 +248,7 @@ export const useStore = create<State>((set, get) => {
     },
     setPlayState(s, detail = "") { set({ playState: s, errorDetail: detail }); },
     setNotice(n) { set({ notice: n }); },
+    setTouch(v) { if (get().touch !== v) set({ touch: v }); },
     changeVolume(delta) {
       const volume = Math.round(Math.max(0, Math.min(1, get().volume + delta)) * 100) / 100;
       set({ volume, volumeNonce: get().volumeNonce + 1 });

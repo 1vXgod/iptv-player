@@ -136,6 +136,52 @@ lib/
   sample.ts built-in demo playlist
 ```
 
+## Phone / touch
+
+The player switches to touch mode automatically the first time you touch the screen (and back to normal when you use a mouse). Everything below works alongside the keyboard controls.
+
+**Watching live TV**
+
+| Gesture | Action |
+|---|---|
+| Swipe left / right | Next / previous channel (a label follows your finger) |
+| Drag up / down | Volume (a bar shows the level; unmutes if muted) |
+| Tap | Show or hide the info bar |
+| Double-tap | Mute / unmute |
+| Press and hold | Open the channel list |
+
+**Recordings and files**
+
+- Swipe left or right to seek.
+- Double-tap the left or right side to jump 10 s, or the centre to pause.
+- Drag up or down for volume, and tap to show the controls.
+
+**Channel list**
+
+- Drag up or down to scroll.
+- Swipe left or right to change group.
+- Tap a channel to play it, and tap the playing one for full screen.
+
+**Menu and File List**
+
+- Tap a tile or a row.
+
+**On-screen remote**
+
+- Every other screen (Channel Manager, PVR, Settings, CA, dialogs) works through the on-screen remote.
+- It sends the same keys as the keyboard: ▲▼◀▶, OK, Back, Menu, Mute, plus context buttons (Delete, Record, Timer and so on).
+- Hold ▲▼ to repeat.
+- In **landscape**, tap the round button at the right edge to open it.
+- In **portrait**, it sits under the picture.
+
+**Phone details**
+
+- The page can't be pinch-zoomed or pulled to refresh, so gestures don't fight the browser.
+- The screen stays awake while you watch live TV.
+- **Full** (in the remote) goes full screen and locks landscape where the browser allows it. iPhones don't support this.
+- **Add to Home Screen** installs it as a full-screen landscape app (`app/manifest.ts`).
+- Long-press, double-tap and swipes only apply to the picture. Buttons and text fields keep normal touch behaviour.
+
 ## Audio troubleshooting
 
 - **Stats panel:** press **S** while watching. It shows the playback method, the codecs, the buffer, and whether audio is actually being decoded.

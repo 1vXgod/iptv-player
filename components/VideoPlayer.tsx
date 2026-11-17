@@ -471,7 +471,7 @@ export default function VideoPlayer() {
       <video ref={videoRef} className="h-full w-full object-contain" playsInline autoPlay />
       {soundBlocked && !small && playState === "playing" && (
         <div className="mx-fade-in absolute left-1/2 top-[4%] -translate-x-1/2 rounded-[0.5cqw] bg-black/70 px-[1.4cqw] py-[0.6cqw] text-[1.25cqw] text-white">
-          🔇 Sound is off — press any key or click to turn it on
+          🔇 Sound is off — tap or press any key to turn it on
         </div>
       )}
       {notice && !small && playState === "playing" && (
