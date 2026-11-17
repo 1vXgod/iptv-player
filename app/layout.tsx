@@ -7,7 +7,13 @@ export const metadata: Metadata = {
   applicationName: "MiraX",
   appleWebApp: { capable: true, title: "MiraX", statusBarStyle: "black-translucent" },
   formatDetection: { telephone: false },
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  // Safari's "Add to Home Screen" opens the page as a bar-free app when this is set
+  other: { "apple-mobile-web-app-capable": "yes" },
+  // iOS ignores SVG home-screen icons, so there are PNGs too
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }, { url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
+  },
 };
 
 // Phone: fixed scale (no pinch-zoom / double-tap zoom fighting the gestures), full-bleed under the notch,

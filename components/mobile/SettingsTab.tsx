@@ -3,6 +3,42 @@ import { useEffect, useState } from "react";
 import { clearAllLocalData, type Settings, useStore } from "@/lib/store";
 import { GhostButton, Segmented } from "./ui";
 
+/** Browser bars can't be hidden by a web page on iPhone. Installing to the Home Screen is what removes them. */
+function InstallCard() {
+  const [info, setInfo] = useState<null | { ios: boolean; chromeIos: boolean }>(null);
+  useEffect(() => {
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+    let dismissed = false;
+    try { dismissed = localStorage.getItem("mirax.installHint") === "1"; } catch { /* ignore */ }
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+    if (!standalone && !dismissed) setInfo({ ios, chromeIos: /CriOS/.test(ua) });
+  }, []);
+  if (!info) return null;
+  const dismiss = () => { try { localStorage.setItem("mirax.installHint", "1"); } catch { /* ignore */ } setInfo(null); };
+  return (
+    <section className="mt-3 rounded-2xl border border-[#16c6f2]/40 bg-[#16c6f2]/10 p-3.5">
+      <h3 className="text-[15px] font-semibold text-[#9fe4ff]">Full screen without browser bars</h3>
+      {info.ios ? (
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-[13px] leading-relaxed text-white/80">
+          <li>
+            Open this page in <b className="text-white">Safari</b>
+            {info.chromeIos ? " — Chrome on iPhone can't hide its toolbars" : ""}.
+          </li>
+          <li>Tap <b className="text-white">Share</b>, then <b className="text-white">Add to Home Screen</b>.</li>
+          <li>Open <b className="text-white">MiraX</b> from your Home Screen: no address bar or toolbars, and it turns with your phone.</li>
+        </ol>
+      ) : (
+        <p className="mt-2 text-[13px] leading-relaxed text-white/80">
+          In Chrome&apos;s menu choose <b className="text-white">Install app</b> (or <b className="text-white">Add to Home screen</b>). It then opens
+          without the address bar. The Rotate button also goes full screen and locks landscape.
+        </p>
+      )}
+      <button onClick={dismiss} className="mt-2.5 h-10 rounded-lg bg-white/10 px-4 text-[13px] font-semibold active:bg-white/20">Got it</button>
+    </section>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="mt-5">
@@ -35,6 +71,7 @@ export default function SettingsTab({ say }: { say: (m: string) => void }) {
 
   return (
     <div className="m-scroll h-full overflow-y-auto px-3 pb-8 pt-1">
+      <InstallCard />
       <Section title="Playback">
         <Setting label="Stream conversion" hint="Automatic converts raw TV streams to a clean 720p picture with AAC sound whenever the server has ffmpeg (this stops green lines and missing sound on phones), and leaves other channels alone. “Always” converts every channel. “Off” never converts.">
           <Segmented<Settings["transcode"]> value={settings.transcode} onChange={(v) => set({ transcode: v })}

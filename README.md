@@ -180,7 +180,14 @@ The app looks at the device it's running on and picks the right interface:
 
 - The page can't be pinch-zoomed or pulled to refresh, so gestures don't fight the browser.
 - The screen stays awake while the app is open.
-- Add it to your Home Screen to install it as an app (`app/manifest.ts`).
+- **For a real full screen with no browser bars, install it as an app.** A web page can't hide Safari's or Chrome's bars on an iPhone, but an installed app has none:
+  - **iPhone:**
+    1. Open the page in **Safari**. Chrome on iPhone installs a bookmark, not an app.
+    2. Tap Share, then Add to Home Screen.
+    3. Open MiraX from the Home Screen.
+    It has no address bar or toolbars, and it turns with the phone.
+  - **Android:** use Chrome's menu, then Install app.
+  - Settings shows this as a card until you dismiss it. The icons and settings live in `app/manifest.ts`, `app/layout.tsx` and `public/`.
 - Full screen locks landscape where the browser allows it. iPhones don't allow it, so rotate the phone instead.
 
 ### Getting clean playback on a phone

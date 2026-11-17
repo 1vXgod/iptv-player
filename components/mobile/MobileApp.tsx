@@ -9,7 +9,7 @@ import PlaylistTab from "./PlaylistTab";
 import RecordingsTab from "./RecordingsTab";
 import SettingsTab from "./SettingsTab";
 import { Sheet } from "./ui";
-import { buzz, canLockLandscape, enterNativeVideoFullscreen, lockLandscape, ROTATED_FRAME, setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
+import { buzz, canLockLandscape, enterNativeVideoFullscreen, hasNativeVideoFullscreen, lockLandscape, ROTATED_FRAME, setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
 
 type Tab = "channels" | "recordings" | "playlist" | "settings";
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
@@ -67,7 +67,7 @@ export default function MobileApp() {
    *  1. Android Chrome: fullscreen + landscape lock (the display itself turns).
    *  2. iPhone / iPad: the system's native video fullscreen, which follows the phone's orientation. (Web pages can't
    *     rotate an iPhone any other way. The native player has its own controls, so our gestures don't apply there.)
-   *  3. Last resort (desktop browsers, or the picture hasn't started yet): turn the picture sideways inside the app.
+   *  3. Last resort (desktop browsers): turn the picture sideways inside the app.
    * The first calls must happen synchronously inside the tap, hence the up-front capability checks.
    */
   const rotate = useCallback(async () => {
@@ -82,10 +82,15 @@ export default function MobileApp() {
       setRotated(true);
       return;
     }
-    if (enterNativeVideoFullscreen()) return; // the system player takes over and turns with the phone
+    if (hasNativeVideoFullscreen()) {
+      // iPhone / iPad: the system player takes over and turns with the phone. It refuses until a picture is playing.
+      // Never fake the rotation here: inside the browser it would still show Chrome's / Safari's bars, sideways.
+      if (!enterNativeVideoFullscreen()) say("On iPhone, Rotate needs a playing picture. Start a channel, then tap Rotate (or just turn your phone sideways).");
+      return;
+    }
     setManualFs(true);
     setRotated(true);
-  }, []);
+  }, [say]);
 
   // anything `fixed` inside a rotated frame is positioned relative to it, so drawers and toasts turn with the picture
   const frameStyle = rotatedActive ? { ...ROTATED_FRAME, zIndex: 60, pointerEvents: "none" as const } : undefined;
