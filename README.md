@@ -158,6 +158,11 @@ The app looks at the device it's running on and picks the right interface:
   - **Settings:** stream conversion, audio processing, layout, and maintenance.
 - **Full screen:**
   - Turn the phone sideways for a full-screen player, or use the full-screen button.
+  - **Rotate** button (in the strip under the picture, and on the picture when you tap it):
+    - On Android Chrome it goes full screen and locks the display to landscape.
+    - On an iPhone, where browsers can't lock the screen, the picture is turned sideways inside the app, and you turn the phone to match.
+    - Gestures, controls and the channel drawer all follow the rotation. The back arrow returns to portrait.
+    - Turning the phone sideways for real switches to the normal landscape view.
   - Tap the picture for controls: previous and next channel, mute, record, and a channel drawer.
 
 **Gestures on the picture**
@@ -175,6 +180,19 @@ The app looks at the device it's running on and picks the right interface:
 - The screen stays awake while the app is open.
 - Add it to your Home Screen to install it as an app (`app/manifest.ts`).
 - Full screen locks landscape where the browser allows it. iPhones don't allow it, so rotate the phone instead.
+
+### Getting clean playback on a phone
+
+Phones are much stricter than PCs about video. Raw IPTV streams are often interlaced HD with MP2 audio, which phones either draw with **green lines** or play **without sound**. The fix is for the server to convert the stream, and that needs **ffmpeg** on the machine running the app.
+
+- **Converted automatically.** With Stream conversion on **Automatic**, the phone layout converts raw TV streams to clean 720p H.264 + AAC whenever the server has ffmpeg. The tags under the picture then show H264 · AAC.
+- **Run it on your own PC.** This is the easy way to get ffmpeg:
+  1. Install ffmpeg (`winget install Gyan.FFmpeg`).
+  2. Run `npm run lan` instead of `npm run dev`.
+  3. On your phone (same Wi-Fi), open `http://<your-PC-IP>:3001`.
+  4. Add the page to your Home Screen if you like.
+  Over plain `http://` the browser disables the "keep screen on" feature, but everything else works.
+- **Vercel can't do this.** Vercel has no ffmpeg and limits how long a stream can run. On a Vercel deployment, channels with MP2 audio have no sound and interlaced channels can show green lines. The phone layout warns you when the server has no ffmpeg. To host it online, use a server that allows ffmpeg and long-running connections (a VPS or Docker host).
 
 ### TV layout (PC)
 

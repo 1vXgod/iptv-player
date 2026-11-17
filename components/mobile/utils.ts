@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { type CSSProperties, useEffect, useState } from "react";
 import { playerRef } from "../VideoPlayer";
 
 export function useMedia(query: string): boolean {
@@ -33,6 +33,21 @@ export function useWakeLock(enabled: boolean) {
     };
   }, [enabled]);
 }
+
+/**
+ * "Rotate screen" for browsers that won't turn the display (iPhone, or Android without fullscreen): the app draws the
+ * player turned 90° clockwise about its top-left corner, sized to the swapped screen, so you just turn the phone.
+ * Anything `fixed` inside a frame like this is positioned relative to it, so drawers and toasts rotate too.
+ */
+export const ROTATED_FRAME: CSSProperties = {
+  position: "fixed",
+  top: 0,
+  left: "100vw",
+  width: "100dvh",
+  height: "100vw",
+  transform: "rotate(90deg)",
+  transformOrigin: "top left",
+};
 
 export const buzz = (ms = 10) => { try { navigator.vibrate?.(ms); } catch { /* unsupported */ } };
 

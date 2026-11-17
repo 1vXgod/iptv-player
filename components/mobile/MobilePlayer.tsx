@@ -7,7 +7,7 @@ import { ChannelLogo, SpeakerIcon } from "../ui";
 import VideoPlayer, { playerRef, toggleMute } from "../VideoPlayer";
 import { usePlayerGestures } from "./gestures";
 import { Icon } from "./icons";
-import { buzz, fmtClock, seekBy, togglePause } from "./utils";
+import { buzz, fmtClock, ROTATED_FRAME, seekBy, togglePause } from "./utils";
 
 /* ------------------------------------------------------------------ shared pieces */
 
@@ -72,8 +72,9 @@ export function ChannelBadge({ c, size = 44 }: { c: Channel | null; size?: numbe
 
 /* ------------------------------------------------------------------ the player */
 
-export default function MobilePlayer({ full, canExit, onToggleFull, onOpenChannels, rec }: {
-  full: boolean; canExit: boolean; onToggleFull: () => void; onOpenChannels: () => void; rec: RecCtx;
+export default function MobilePlayer({ full, rotated, canExit, canRotate, onToggleFull, onRotate, onOpenChannels, rec }: {
+  full: boolean; rotated: boolean; canExit: boolean; canRotate: boolean;
+  onToggleFull: () => void; onRotate: () => void; onOpenChannels: () => void; rec: RecCtx;
 }) {
   const boxRef = useRef<HTMLDivElement>(null);
   const current = useStore((s) => s.current);
@@ -109,6 +110,7 @@ export default function MobilePlayer({ full, canExit, onToggleFull, onOpenChanne
   }, [volNonce, muted]);
 
   usePlayerGestures(boxRef, {
+    isRotated: () => rotated,
     onTap: () => { prevControls.current = controls; if (controls) setControls(false); else show(); },
     onDoubleTap: (x) => {
       setControls(prevControls.current); // undo the toggle the first tap did
@@ -141,15 +143,15 @@ export default function MobilePlayer({ full, canExit, onToggleFull, onOpenChanne
 
   const round = "flex items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-sm transition-transform active:scale-95";
   const zap = (d: number) => { buzz(8); useStore.getState().zap(d); show(); };
-  const pad = full
+  const pad = full && rotated ? { padding: 14 } : full
     ? { paddingTop: "max(10px, env(safe-area-inset-top))", paddingLeft: "max(14px, env(safe-area-inset-left))", paddingRight: "max(14px, env(safe-area-inset-right))", paddingBottom: "max(10px, env(safe-area-inset-bottom))" }
     : { padding: 10 };
 
   return (
     <div
       ref={boxRef}
-      className={`${full ? "fixed inset-0 z-40" : "relative w-full shrink-0"} select-none overflow-hidden bg-black`}
-      style={{ aspectRatio: full ? undefined : "16 / 9", touchAction: "none" }}
+      className={`${rotated ? "" : full ? "fixed inset-0 z-40" : "relative w-full shrink-0"} select-none overflow-hidden bg-black`}
+      style={rotated ? { ...ROTATED_FRAME, zIndex: 40, touchAction: "none" } : { aspectRatio: full ? undefined : "16 / 9", touchAction: "none" }}
     >
       <VideoPlayer fill />
 
@@ -201,6 +203,11 @@ export default function MobilePlayer({ full, canExit, onToggleFull, onOpenChanne
             {full && !vod && (
               <button aria-label="Channels" onClick={onOpenChannels} className={`${round} h-11 w-11`}>
                 <Icon name="list" />
+              </button>
+            )}
+            {canRotate && (
+              <button aria-label="Rotate screen" onClick={onRotate} className={`${round} h-11 w-11`}>
+                <Icon name="rotate" />
               </button>
             )}
             {(!full || canExit) && (

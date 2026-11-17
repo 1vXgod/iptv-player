@@ -9,7 +9,7 @@ import PlaylistTab from "./PlaylistTab";
 import RecordingsTab from "./RecordingsTab";
 import SettingsTab from "./SettingsTab";
 import { Sheet } from "./ui";
-import { setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
+import { ROTATED_FRAME, setBrowserFullscreen, useMedia, useWakeLock } from "./utils";
 
 type Tab = "channels" | "recordings" | "playlist" | "settings";
 const TABS: { id: Tab; label: string; icon: IconName }[] = [
@@ -21,18 +21,20 @@ const TABS: { id: Tab; label: string; icon: IconName }[] = [
 
 /**
  * The phone interface: picture on top (swipe / drag / tap gestures), what's playing under it,
- * then Channels · Recordings · Playlist · Settings. Turn the phone sideways for a full-screen player.
+ * then Channels · Recordings · Playlist · Settings. Turn the phone sideways — or tap Rotate — for a full-screen player.
  */
 export default function MobileApp() {
   const [tab, setTab] = useState<Tab>("channels");
   const [manualFs, setManualFs] = useState(false);
+  const [rotated, setRotated] = useState(false); // software rotation (browser wouldn't turn the display)
   const [sheet, setSheet] = useState(false);
   const [toast, setToast] = useState("");
   const toastTimer = useRef<number | undefined>(undefined);
 
-  // sideways on a phone = full-screen player; the button also forces it when held upright
+  // sideways on a phone = full-screen player; the buttons also force it when held upright
   const landscapeShort = useMedia("(orientation: landscape) and (max-height: 520px)");
   const full = landscapeShort || manualFs;
+  const rotatedActive = rotated && full && !landscapeShort;
   useWakeLock(true);
 
   const { recs, ffmpeg, refresh } = useRecordings(true);
@@ -45,22 +47,50 @@ export default function MobileApp() {
 
   // leaving fullscreen with the system gesture / back button must update our state
   useEffect(() => {
-    const on = () => { if (!document.fullscreenElement) setManualFs(false); };
+    const on = () => { if (!document.fullscreenElement) { setManualFs(false); setRotated(false); } };
     document.addEventListener("fullscreenchange", on);
     return () => document.removeEventListener("fullscreenchange", on);
   }, []);
   useEffect(() => { if (!full) setSheet(false); }, [full]);
+  // the phone really was turned sideways: the real orientation takes over from the software rotation
+  useEffect(() => { if (landscapeShort) setRotated(false); }, [landscapeShort]);
 
   const toggleFull = useCallback(() => {
-    setManualFs((m) => { void setBrowserFullscreen(!m); return !m; });
+    const next = !manualFs;
+    setManualFs(next);
+    if (!next) setRotated(false);
+    void setBrowserFullscreen(next);
+  }, [manualFs]);
+
+  /**
+   * Rotate button. First ask the browser properly (fullscreen + landscape lock: works on Android Chrome). If the phone
+   * is still upright a moment later (iPhone, or the lock was refused) turn the picture sideways inside the app instead.
+   */
+  const rotate = useCallback(async () => {
+    setManualFs(true);
+    await setBrowserFullscreen(true); // must start inside the tap, before any other await
+    await new Promise((r) => setTimeout(r, 400));
+    if (!window.matchMedia("(orientation: landscape)").matches) setRotated(true);
   }, []);
+
+  // anything `fixed` inside a rotated frame is positioned relative to it, so drawers and toasts turn with the picture
+  const frameStyle = rotatedActive ? { ...ROTATED_FRAME, zIndex: 60, pointerEvents: "none" as const } : undefined;
 
   return (
     <div className="fixed inset-0 flex flex-col bg-[#060a14] font-receiver text-white" style={{ paddingTop: full ? 0 : "env(safe-area-inset-top)" }}>
-      <MobilePlayer full={full} canExit={manualFs || !landscapeShort} onToggleFull={toggleFull} onOpenChannels={() => setSheet(true)} rec={rec} />
+      <MobilePlayer
+        full={full}
+        rotated={rotatedActive}
+        canExit={manualFs || !landscapeShort}
+        canRotate={!landscapeShort && !rotatedActive}
+        onToggleFull={toggleFull}
+        onRotate={() => void rotate()}
+        onOpenChannels={() => setSheet(true)}
+        rec={rec}
+      />
 
       <div className={full ? "hidden" : "flex min-h-0 flex-1 flex-col"}>
-        <NowPlaying rec={rec} onToggleFull={toggleFull} />
+        <NowPlaying rec={rec} onToggleFull={toggleFull} onRotate={() => void rotate()} ffmpeg={ffmpeg} />
 
         <main className="min-h-0 flex-1 overflow-hidden">
           <div className={tab === "channels" ? "h-full" : "hidden"}><ChannelsPanel onAdd={() => setTab("playlist")} /></div>
@@ -91,18 +121,22 @@ export default function MobileApp() {
         </nav>
       </div>
 
-      <Sheet open={sheet && full} onClose={() => setSheet(false)} side="right" title="Channels">
-        <div className="h-[calc(100dvh-64px)]"><ChannelsPanel onPick={() => setSheet(false)} /></div>
-      </Sheet>
+      {/* drawer + toast: inside a rotated frame when the picture is turned, so they turn with it.
+          (The frame is always the same element, so opening the drawer never re-mounts anything.) */}
+      <div style={frameStyle}>
+        <Sheet open={sheet && full} onClose={() => setSheet(false)} side="right" title="Channels">
+          <div className="h-full"><ChannelsPanel onPick={() => setSheet(false)} /></div>
+        </Sheet>
 
-      {toast && (
-        <div
-          className="mx-fade-in pointer-events-none fixed inset-x-4 z-[70] mx-auto max-w-sm rounded-xl bg-[#1b2542] px-4 py-3 text-center text-sm font-medium shadow-2xl"
-          style={{ bottom: full ? "20px" : "calc(72px + env(safe-area-inset-bottom))" }}
-        >
-          {toast}
-        </div>
-      )}
+        {toast && (
+          <div
+            className="mx-fade-in pointer-events-none fixed inset-x-4 z-[70] mx-auto max-w-sm rounded-xl bg-[#1b2542] px-4 py-3 text-center text-sm font-medium shadow-2xl"
+            style={{ bottom: full ? "20px" : "calc(72px + env(safe-area-inset-bottom))" }}
+          >
+            {toast}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

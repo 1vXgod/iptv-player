@@ -15,7 +15,7 @@ export function Sheet({ open, onClose, side = "bottom", title, children }: {
   if (!open) return null;
   const bottom = side === "bottom";
   return (
-    <div className="fixed inset-0 z-[60]" role="dialog" aria-modal>
+    <div className="pointer-events-auto fixed inset-0 z-[60]" role="dialog" aria-modal data-no-gesture>
       <div className="mx-fade-in absolute inset-0 bg-black/65" onClick={onClose} />
       <div
         className={`absolute flex flex-col bg-[#0d1428] text-white shadow-2xl ${

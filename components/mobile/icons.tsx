@@ -2,7 +2,7 @@
 
 export type IconName =
   | "prev" | "next" | "play" | "pause" | "list" | "rec" | "full" | "exitfull" | "back" | "gear" | "plus"
-  | "search" | "x" | "tv" | "edit" | "trash" | "up" | "down" | "film" | "clock" | "check" | "stop";
+  | "search" | "x" | "tv" | "edit" | "trash" | "up" | "down" | "film" | "clock" | "check" | "stop" | "rotate";
 
 const P: Record<IconName, React.ReactNode> = {
   prev: <><path d="M19 5v14L8 12z" fill="currentColor" stroke="none" /><path d="M5 5v14" /></>,
@@ -27,6 +27,7 @@ const P: Record<IconName, React.ReactNode> = {
   film: <><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9h16M4 15h16M9 4v16M15 4v16" /></>,
   clock: <><circle cx="12" cy="12" r="8" /><path d="M12 7v5l3 2" /></>,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
+  rotate: <><rect x="3" y="8" width="13" height="9" rx="1.5" transform="rotate(-90 9.5 12.5)" /><path d="M17 5h3.5V1.5M20.5 5A9 9 0 0 0 12 3M7 19H3.5v3.5M3.5 19A9 9 0 0 0 12 21" /></>,
 };
 
 export function Icon({ name, className = "h-6 w-6" }: { name: IconName; className?: string }) {

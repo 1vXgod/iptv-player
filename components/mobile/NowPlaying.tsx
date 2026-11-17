@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { codecTags, useStore } from "@/lib/store";
 import { SpeakerIcon } from "../ui";
 import { toggleMute } from "../VideoPlayer";
@@ -21,7 +22,8 @@ function Action({ label, onClick, children, active = false }: { label: string; o
 const I = ({ name }: { name: IconName }) => <Icon name={name} className="h-6 w-6" />;
 
 /** Under the picture in portrait: what's playing, plus the main controls as big touch targets. */
-export default function NowPlaying({ rec, onToggleFull }: { rec: RecCtx; onToggleFull: () => void }) {
+export default function NowPlaying({ rec, onToggleFull, onRotate, ffmpeg = true }: { rec: RecCtx; onToggleFull: () => void; onRotate: () => void; ffmpeg?: boolean }) {
+  const [hideWarn, setHideWarn] = useState(false);
   const current = useStore((s) => s.current);
   const tech = useStore((s) => s.tech);
   const muted = useStore((s) => s.muted);
@@ -35,6 +37,15 @@ export default function NowPlaying({ rec, onToggleFull }: { rec: RecCtx; onToggl
 
   return (
     <div className="shrink-0 border-b border-white/8 bg-[#0a1020] px-3 pb-1.5 pt-3">
+      {!ffmpeg && !hideWarn && (
+        <div className="mb-3 flex items-start gap-2 rounded-xl bg-amber-400/15 px-3 py-2 text-[12px] leading-snug text-amber-200">
+          <span className="flex-1">
+            This server has no ffmpeg, so it can&apos;t convert streams. Some channels may have no sound or show green lines.
+            Run the app on your PC or a server with ffmpeg for clean playback.
+          </span>
+          <button aria-label="Dismiss" onClick={() => setHideWarn(true)} className="-mr-1 -mt-1 flex h-8 w-8 shrink-0 items-center justify-center text-amber-200/80">✕</button>
+        </div>
+      )}
       <div className="flex items-center gap-3">
         <ChannelBadge c={current} />
         <div className="min-w-0 flex-1">
@@ -69,6 +80,7 @@ export default function NowPlaying({ rec, onToggleFull }: { rec: RecCtx; onToggl
             <Action label={mine ? "Stop rec" : "Record"} active={!!mine} onClick={() => current && void toggleRecord(current, rec)}>
               <Icon name={mine ? "stop" : "rec"} className="h-6 w-6" />
             </Action>
+            <Action label="Rotate" onClick={onRotate}><I name="rotate" /></Action>
             <Action label="Full screen" onClick={onToggleFull}><I name="full" /></Action>
           </>
         )}
