@@ -1,5 +1,5 @@
-import Receiver from "@/components/Receiver";
+import Root from "@/components/Root";
 
 export default function Page() {
-  return <Receiver />;
+  return <Root />;
 }

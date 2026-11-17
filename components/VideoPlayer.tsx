@@ -113,7 +113,7 @@ function urlPath(u: string) {
   try { return new URL(u).pathname; } catch { return u; }
 }
 
-export default function VideoPlayer() {
+export default function VideoPlayer({ fill = false }: { fill?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const current = useStore((s) => s.current);
   const tuneNonce = useStore((s) => s.tuneNonce);
@@ -451,12 +451,13 @@ export default function VideoPlayer() {
     };
   }, [tuneNonce, setPlayState, setTech, setNotice]);
 
-  const small = view !== "tv";
-  const hidden = HIDDEN_VIEWS.includes(view);
+  // fill = the phone UI: the player simply fills its container (no TV-screen layouts or transforms)
+  const small = !fill && view !== "tv";
+  const hidden = !fill && HIDDEN_VIEWS.includes(view);
   return (
     <div
       className="absolute inset-0 overflow-hidden bg-black"
-      style={{
+      style={fill ? undefined : {
         transform: layerTransform(view),
         transformOrigin: "0 0",
         transition: "transform 380ms cubic-bezier(.22,.8,.24,1), opacity 200ms ease-out",
@@ -470,23 +471,55 @@ export default function VideoPlayer() {
     >
       <video ref={videoRef} className="h-full w-full object-contain" playsInline autoPlay />
       {soundBlocked && !small && playState === "playing" && (
-        <div className="mx-fade-in absolute left-1/2 top-[4%] -translate-x-1/2 rounded-[0.5cqw] bg-black/70 px-[1.4cqw] py-[0.6cqw] text-[1.25cqw] text-white">
-          🔇 Sound is off — tap or press any key to turn it on
-        </div>
+        fill ? (
+          <div className="mx-fade-in pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/75 px-3 py-1.5 text-[13px] text-white">
+            🔇 Tap to turn the sound on
+          </div>
+        ) : (
+          <div className="mx-fade-in absolute left-1/2 top-[4%] -translate-x-1/2 rounded-[0.5cqw] bg-black/70 px-[1.4cqw] py-[0.6cqw] text-[1.25cqw] text-white">
+            🔇 Sound is off — tap or press any key to turn it on
+          </div>
+        )
       )}
       {notice && !small && playState === "playing" && (
-        <div className="absolute right-[2%] top-[3%] max-w-[45%] rounded-[0.4cqw] bg-black/65 px-[1cqw] py-[0.5cqw] text-[1.05cqw] text-[#ffe27a]">
-          🔇 {notice}
-        </div>
+        fill ? (
+          <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10 rounded-lg bg-black/70 px-3 py-1.5 text-xs text-[#ffe27a]">🔇 {notice}</div>
+        ) : (
+          <div className="absolute right-[2%] top-[3%] max-w-[45%] rounded-[0.4cqw] bg-black/65 px-[1cqw] py-[0.5cqw] text-[1.05cqw] text-[#ffe27a]">
+            🔇 {notice}
+          </div>
+        )
       )}
       {current && playState !== "playing" && (
-        <SignalOverlay state={playState} small={small} detail={errorDetail} />
+        <SignalOverlay state={playState} small={small} detail={errorDetail} mobile={fill} />
       )}
     </div>
   );
 }
 
-function SignalOverlay({ state, small, detail }: { state: string; small: boolean; detail: string }) {
+function SignalOverlay({ state, small, detail, mobile = false }: { state: string; small: boolean; detail: string; mobile?: boolean }) {
+  if (mobile) {
+    if (state === "error") {
+      const s = useStore.getState();
+      return (
+        <div className="mx-fade-in absolute inset-0 flex flex-col items-center justify-center gap-2 bg-[radial-gradient(ellipse_at_center,#1b2a44_0%,#05080f_75%)] px-6 text-center">
+          <div className="text-lg font-bold text-[#e8eef7]">No signal</div>
+          <div className="max-h-16 overflow-hidden break-words text-xs text-[#ffb3a8]">{detail || "This stream is unavailable"}</div>
+          <div className="mt-1 flex gap-2">
+            <button onClick={() => s.current && s.play({ ...s.current })} className="rounded-full bg-[#16c6f2] px-4 py-1.5 text-sm font-semibold text-[#062033] active:opacity-80">Retry</button>
+            {!s.current?.vod && (
+              <button onClick={() => useStore.getState().zap(1)} className="rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold text-white active:opacity-80">Next channel</button>
+            )}
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="mx-loading pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40">
+        <div className="mx-spinner-m"><div className="mx-spinner-arc" /></div>
+      </div>
+    );
+  }
   if (state === "error") {
     return (
       <div className="mx-fade-in absolute inset-0 flex flex-col items-center justify-center bg-[radial-gradient(ellipse_at_center,#1b2a44_0%,#05080f_75%)]">

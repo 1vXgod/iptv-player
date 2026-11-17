@@ -169,7 +169,7 @@ export default function FileListScreen() {
                 return (
                   <div
                     key={e.name}
-                    onClick={() => { setCursor(idx); if (useStore.getState().touch) void open(e); }}
+                    onClick={() => setCursor(idx)}
                     onDoubleClick={() => open(e)}
                     className="flex h-[11%] cursor-pointer items-center gap-[1cqw] rounded-[0.6cqw] px-[1.2cqw] text-[1.35cqw]"
                     style={{

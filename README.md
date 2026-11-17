@@ -136,51 +136,49 @@ lib/
   sample.ts built-in demo playlist
 ```
 
-## Phone / touch
+## Phone and PC: two interfaces
 
-The player switches to touch mode automatically the first time you touch the screen (and back to normal when you use a mouse). Everything below works alongside the keyboard controls.
+The app looks at the device it's running on and picks the right interface:
 
-**Watching live TV**
-
-| Gesture | Action |
+| Device | Interface |
 |---|---|
-| Swipe left / right | Next / previous channel (a label follows your finger) |
-| Drag up / down | Volume (a bar shows the level; unmutes if muted) |
-| Tap | Show or hide the info bar |
-| Double-tap | Mute / unmute |
-| Press and hold | Open the channel list |
+| Phone or tablet (touch-first: the main pointer is a finger and nothing can hover) | **Phone layout**, touch gestures |
+| PC / laptop (mouse + keyboard) | **TV layout**, keyboard controls only |
 
-**Recordings and files**
+- **Override** it under **Settings › Interface** (Auto / Phone / TV) in either layout, or with `?ui=phone` / `?ui=tv` in the address.
+- A touchscreen laptop whose main pointer is a mouse still gets the TV layout.
 
-- Swipe left or right to seek.
-- Double-tap the left or right side to jump 10 s, or the centre to pause.
-- Drag up or down for volume, and tap to show the controls.
+### Phone layout
 
-**Channel list**
+- **Picture on top**, with a "now playing" strip under it: previous, next, mute, record and full screen as big touch buttons.
+- **Four tabs:**
+  - **Channels:** search, group chips, and a list with logos. Tap a channel to play it. The pencil switches on reordering and deleting.
+  - **Recordings:** record now, set a timer (native date and time pickers), play, stop and delete recordings, and play a video from the phone.
+  - **Playlist:** the subscription card (expiry, days left) plus M3U, Xtream login and MAC portal forms, with this phone's MAC address.
+  - **Settings:** stream conversion, audio processing, layout, and maintenance.
+- **Full screen:**
+  - Turn the phone sideways for a full-screen player, or use the full-screen button.
+  - Tap the picture for controls: previous and next channel, mute, record, and a channel drawer.
 
-- Drag up or down to scroll.
-- Swipe left or right to change group.
-- Tap a channel to play it, and tap the playing one for full screen.
+**Gestures on the picture**
 
-**Menu and File List**
-
-- Tap a tile or a row.
-
-**On-screen remote**
-
-- Every other screen (Channel Manager, PVR, Settings, CA, dialogs) works through the on-screen remote.
-- It sends the same keys as the keyboard: ▲▼◀▶, OK, Back, Menu, Mute, plus context buttons (Delete, Record, Timer and so on).
-- Hold ▲▼ to repeat.
-- In **landscape**, tap the round button at the right edge to open it.
-- In **portrait**, it sits under the picture.
+| Gesture | Live TV | Recording / file |
+|---|---|---|
+| Swipe left / right | Next / previous channel (a label follows your finger) | Seek |
+| Drag up / down | Volume (a pill shows the level; unmutes if muted) | Volume |
+| Tap | Show or hide the controls | Show or hide the controls |
+| Double-tap | Mute / unmute | Left or right side jumps 10 s, centre pauses |
 
 **Phone details**
 
 - The page can't be pinch-zoomed or pulled to refresh, so gestures don't fight the browser.
-- The screen stays awake while you watch live TV.
-- **Full** (in the remote) goes full screen and locks landscape where the browser allows it. iPhones don't support this.
-- **Add to Home Screen** installs it as a full-screen landscape app (`app/manifest.ts`).
-- Long-press, double-tap and swipes only apply to the picture. Buttons and text fields keep normal touch behaviour.
+- The screen stays awake while the app is open.
+- Add it to your Home Screen to install it as an app (`app/manifest.ts`).
+- Full screen locks landscape where the browser allows it. iPhones don't allow it, so rotate the phone instead.
+
+### TV layout (PC)
+
+Keyboard (and mouse) only. There are no touch gestures and no on-screen remote on a PC. The controls are in the table above.
 
 ## Audio troubleshooting
 

@@ -41,6 +41,15 @@ const ITEMS: Item[] = [
     ],
     hint: "Automatic plays audio directly and switches to ffmpeg only if it stops decoding. 'Always via ffmpeg' converts every channel's audio to clean AAC (video untouched, little CPU) — use it if sound drops out or crackles.",
   },
+  {
+    kind: "choice", label: "Interface", key: "ui",
+    options: [
+      { value: "auto", label: "Auto-detect" },
+      { value: "phone", label: "Phone layout" },
+      { value: "tv", label: "TV layout" },
+    ],
+    hint: "Auto shows the phone layout on phones and tablets and this TV layout on a computer. Choose one to force it (you can also add ?ui=phone or ?ui=tv to the address).",
+  },
   { kind: "action", label: "Playlist", id: "playlist", hint: "Load a playlist from a URL, a local file, or the built-in sample." },
   { kind: "action", label: "Forget learned stream methods", id: "strategies", hint: "The player remembers which method worked for each channel. Clear it if channels behave oddly." },
   { kind: "action", label: "Reset channel order", id: "order", hint: "Undo all Channel Manager moves and deletions for the current playlist." },
@@ -130,7 +139,7 @@ export default function SettingsScreen() {
               <div
                 key={it.label}
                 onClick={() => { setCursor(i); run(it); }}
-                className="relative flex h-[11%] cursor-pointer items-center rounded-[0.6cqw] px-[1.4cqw]"
+                className="relative flex h-[10%] cursor-pointer items-center rounded-[0.6cqw] px-[1.4cqw]"
                 style={{
                   background: active ? "linear-gradient(90deg,#11b5ec 0%,#16c6f2 75%,rgba(22,198,242,.6) 100%)" : "transparent",
                   boxShadow: active ? "0 0 1cqw rgba(30,200,255,.45)" : "none",

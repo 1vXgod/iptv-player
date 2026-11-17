@@ -96,6 +96,8 @@ export function ChannelLogo({ src, className = "", fallback = null }: { src?: st
       alt=""
       draggable={false}
       referrerPolicy="no-referrer"
+      loading="lazy"
+      decoding="async"
       onError={() => setStage((s) => s + 1)}
       className={`object-contain ${className}`}
     />

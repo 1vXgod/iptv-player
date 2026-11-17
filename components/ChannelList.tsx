@@ -74,13 +74,7 @@ export default function ChannelList() {
           return (
             <div
               key={c.id}
-              onClick={() => {
-                const s = useStore.getState();
-                useStore.setState({ cursor: idx });
-                if (!s.touch) return; // mouse: click selects, double-click plays (below)
-                if (s.current?.id === c.id && s.playState !== "error") s.setView("tv");
-                else s.play(c);
-              }}
+              onClick={() => useStore.setState({ cursor: idx })}
               onDoubleClick={() => { useStore.setState({ cursor: idx }); useStore.getState().play(c); }}
               className="relative flex h-[6.75cqh] cursor-pointer items-center border-b border-[#4a5361]"
             >

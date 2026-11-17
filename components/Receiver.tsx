@@ -12,7 +12,6 @@ import CAScreen from "./CAScreen";
 import PvrScreen from "./PvrScreen";
 import FileListScreen from "./FileListScreen";
 import { RecBadge, StatsPanel, VodBar, VolumeOsd, vodKey } from "./Playback";
-import { GestureHint, RemoteDock, TouchOverlay, useMedia, useStageGestures, useTouchDetection, useWakeLock } from "./Touch";
 
 /** The whole "box": a 16:9 stage that scales to the window, plus remote-style key handling. */
 export default function Receiver() {
@@ -21,13 +20,6 @@ export default function Receiver() {
   const placeholderTitle = useStore((s) => s.placeholderTitle);
   const isVod = useStore((s) => !!s.current?.vod);
   const [tile, setTile] = useState<TileId>("preview");
-  const touch = useStore((s) => s.touch);
-  const portrait = useMedia("(orientation: portrait)");
-  const docked = touch && portrait; // phone held upright: stage on top, remote below
-  const stageRef = useRef<HTMLDivElement>(null);
-  useTouchDetection();
-  useStageGestures(stageRef);
-  useWakeLock(touch && view === "tv");
 
   // Coming to the menu from live TV or the channel list: focus the live TV box (like the receiver).
   // Coming back from a sub-screen (Settings, PVR, …): keep that tile focused.
@@ -158,11 +150,10 @@ export default function Receiver() {
   }, [tile]);
 
   return (
-    <main className={`flex h-dvh w-screen overflow-hidden bg-black ${docked ? "flex-col items-center justify-start" : "items-center justify-center"}`}>
+    <main className="flex h-dvh w-screen items-center justify-center overflow-hidden bg-black">
       <div
-        ref={stageRef}
-        className="relative shrink-0 overflow-hidden bg-black font-receiver"
-        style={{ width: "min(100vw, calc(100dvh * 16 / 9))", aspectRatio: "16 / 9", containerType: "size", touchAction: "none" }}
+        className="relative overflow-hidden bg-black font-receiver"
+        style={{ width: "min(100vw, calc(100dvh * 16 / 9))", aspectRatio: "16 / 9", containerType: "size" }}
       >
         {view === "home" && <HomeMenu focus={tile} onSelect={selectTile} />}
         {view === "list" && <ChannelList />}
@@ -178,8 +169,6 @@ export default function Receiver() {
         <StatsPanel />
         <VolumeOsd />
         {view === "tv" && !isVod && <TvHelp />}
-        <GestureHint />
-        {touch && !docked && <TouchOverlay />}
 
         {digits && (
           <div className="absolute right-[3%] top-[5%] z-50 rounded-[0.5cqw] bg-[#1a2333]/90 px-[1.6cqw] py-[0.6cqw] text-[3.2cqw] font-semibold tracking-[0.3cqw] text-[#5fdcff]">
@@ -192,14 +181,12 @@ export default function Receiver() {
           <Placeholder title={placeholderTitle} onClose={() => useStore.getState().openOverlay(null)} />
         )}
       </div>
-      {docked && <RemoteDock />}
     </main>
   );
 }
 
 /** Small, fading key legend so first-time users know how to drive the box. */
 function TvHelp() {
-  const touch = useStore((s) => s.touch);
   const [show, setShow] = useState(true);
   useEffect(() => {
     const id = window.setTimeout(() => setShow(false), 7000);
@@ -209,17 +196,8 @@ function TvHelp() {
     <div
       className={`absolute left-[2%] top-[3%] z-30 rounded-[0.5cqw] bg-black/55 px-[1.2cqw] py-[0.8cqw] text-[1.05cqw] leading-[1.6] text-white/85 transition-opacity duration-700 ${show ? "opacity-100" : "pointer-events-none opacity-0"}`}
     >
-      {touch ? (
-        <>
-          <b className="text-[#5fdcff]">Swipe ◀▶</b> channel · <b className="text-[#5fdcff]">drag ▲▼</b> volume · <b className="text-[#5fdcff]">tap</b> info ·{" "}
-          <b className="text-[#5fdcff]">double-tap</b> mute · <b className="text-[#5fdcff]">hold</b> channel list
-        </>
-      ) : (
-      <>
       <b className="text-[#5fdcff]">◀▶</b> channel · <b className="text-[#5fdcff]">▲▼</b> volume · <b className="text-[#5fdcff]">OK/Enter</b> channel list ·{" "}
       <b className="text-[#5fdcff]">M</b> menu · <b className="text-[#5fdcff]">i</b> info · <b className="text-[#5fdcff]">R</b> record · <b className="text-[#5fdcff]">S</b> stats · <b className="text-[#5fdcff]">U</b> mute · <b className="text-[#5fdcff]">0-9</b> number
-      </>
-      )}
     </div>
   );
 }
