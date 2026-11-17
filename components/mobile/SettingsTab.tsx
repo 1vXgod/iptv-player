@@ -36,7 +36,7 @@ export default function SettingsTab({ say }: { say: (m: string) => void }) {
   return (
     <div className="m-scroll h-full overflow-y-auto px-3 pb-8 pt-1">
       <Section title="Playback">
-        <Setting label="Stream conversion" hint="Automatic only uses ffmpeg when the phone can't play a channel. “Always” converts every channel to 720p (more server load). “Off” never converts.">
+        <Setting label="Stream conversion" hint="Automatic converts raw TV streams to a clean 720p picture with AAC sound whenever the server has ffmpeg (this stops green lines and missing sound on phones), and leaves other channels alone. “Always” converts every channel. “Off” never converts.">
           <Segmented<Settings["transcode"]> value={settings.transcode} onChange={(v) => set({ transcode: v })}
             options={[{ value: "auto", label: "Automatic" }, { value: "always", label: "Always" }, { value: "off", label: "Off" }]} />
         </Setting>

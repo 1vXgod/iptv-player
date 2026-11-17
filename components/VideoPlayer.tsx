@@ -383,6 +383,10 @@ export default function VideoPlayer({ fill = false }: { fill?: boolean }) {
       }
       if (cancelled) return;
       if (mode === "off") probe.ffmpeg = false;
+      // Phones: copying the video often shows green blocks/lines (interlaced or field-coded H.264 is decoded badly
+      // by phone hardware, and without raising an error, so no fallback ever fires). When the server has ffmpeg,
+      // raw-TS channels are therefore converted to clean 720p H.264 + AAC from the start.
+      const phoneSafe = fill && mode === "auto";
       const encUrl = encodeURIComponent(url);
       // Raw TS channels go through the server's shared stream hub (one provider connection per channel).
       const liveQ = kind === "ts" ? "&live=1" : "";
@@ -395,7 +399,12 @@ export default function VideoPlayer({ fill = false }: { fill?: boolean }) {
       if (mode === "always" && probe.ffmpeg) {
         attempts = [fullConvAny];
       } else if (kind === "hls") {
-        const direct = [hlsAttempt(url, "HLS direct"), hlsAttempt(proxyUrl(url), "HLS via proxy")];
+        // An https page can't load an http stream directly (mixed content): go straight to the proxy instead
+        // of waiting for the direct attempt to time out.
+        const mixed = window.location.protocol === "https:" && url.startsWith("http:");
+        const direct = mixed
+          ? [hlsAttempt(proxyUrl(url), "HLS via proxy")]
+          : [hlsAttempt(url, "HLS direct"), hlsAttempt(proxyUrl(url), "HLS via proxy")];
         attempts = !probe.ffmpeg ? direct
           : audioFixAlways ? [audioConvAny, ...direct, fullConvAny]
           : [...direct, audioConvAny, fullConvAny];
@@ -423,9 +432,12 @@ export default function VideoPlayer({ fill = false }: { fill?: boolean }) {
           if (probe.ffmpeg) {
             // Cheapest path first. If audio fails to decode (watchdog) -> audio→AAC; if the video
             // is rejected -> full transcode.
-            attempts = allBad || audioFixAlways
-              ? [audioConv, fullConv]
-              : [tsAttempt(bad.length ? stripUrl : `${proxyUrl(url)}&live=1`, "MPEG-TS"), audioConv, fullConv];
+            const plain = tsAttempt(bad.length ? stripUrl : `${proxyUrl(url)}&live=1`, "MPEG-TS");
+            attempts = phoneSafe
+              ? [fullConv, audioConv, plain]
+              : allBad || audioFixAlways
+                ? [audioConv, fullConv]
+                : [plain, audioConv, fullConv];
           } else if (allBad) {
             attempts = [tsAttempt(stripUrl, "MPEG-TS (video only)", () =>
               setNotice(`No sound: ${bad.join("/").toUpperCase()} audio isn't supported by browsers. Install ffmpeg to enable it.`))];
